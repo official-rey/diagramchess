@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>review · diagramchess</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <h1><a href="/" style="text-decoration:none;color:inherit">diagramchess</a></h1>
+  <span class="muted" id="where">…</span>
+  <span class="spacer"></span>
+  <span class="muted" id="remaining"></span>
+  <button id="prev" title="previous (P)">‹ prev</button>
+  <button id="next" title="next (N)">next ›</button>
+</header>
+
+<main>
+  <div class="grid-3">
+    <section>
+      <div class="card">
+        <div class="muted" style="font-size:13px;margin-bottom:8px" id="caption"></div>
+        <img class="crop" id="crop" alt="the diagram as printed">
+        <div class="row" style="margin-top:10px">
+          <span class="pill" id="detect-pill"></span>
+          <span class="pill" id="conf-pill"></span>
+        </div>
+      </div>
+      <details class="card" style="margin-top:14px">
+        <summary>Show the whole page</summary>
+        <img class="page" id="page" style="margin-top:10px" alt="the page this came from" loading="lazy">
+      </details>
+      <div class="card help" style="margin-top:14px">
+        <div><span>move</span><span><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd></span></div>
+        <div><span>set a black piece</span><span><kbd>k</kbd><kbd>q</kbd><kbd>r</kbd><kbd>b</kbd><kbd>n</kbd><kbd>p</kbd></span></div>
+        <div><span>set a white piece</span><span><kbd>shift</kbd> + the same</span></div>
+        <div><span>empty the square</span><span><kbd>space</kbd> or <kbd>.</kbd></span></div>
+        <div><span>jump to the next doubt</span><span><kbd>tab</kbd></span></div>
+        <div><span>flip the board</span><span><kbd>f</kbd></span></div>
+        <div><span>switch side to move</span><span><kbd>t</kbd></span></div>
+        <div><span>read it again</span><span><kbd>a</kbd></span></div>
+        <div><span>crops / reading / both</span><span><kbd>c</kbd></span></div>
+        <div><span>open on Lichess</span><span><kbd>l</kbd></span></div>
+        <div><span>save and go on</span><span><kbd>enter</kbd></span></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="coords" id="files-top"></div>
+      <div class="board" id="board"></div>
+      <div class="coords" id="files-bottom"></div>
+      <div class="row" style="margin-top:12px">
+        <button id="flip" title="f">flip · <span id="orientation-label">white at the bottom</span></button>
+        <button id="side" title="t">side to move · <span id="side-label">white</span></button>
+        <button id="reread" title="r">read again</button>
+        <span class="spacer"></span>
+        <label class="muted" style="font-size:12px">
+          flag below
+          <input type="range" id="threshold" min="50" max="100" value="90" style="vertical-align:middle;width:90px">
+          <span class="mono" id="threshold-label">90%</span>
+        </label>
+      </div>
+      <ul class="problems" id="problems"></ul>
+    </section>
+
+    <section>
+      <div class="card">
+        <div class="palette" id="palette"></div>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <div class="fen" id="fen">…</div>
+        <div class="row" style="margin-top:10px">
+          <a class="button primary" id="lichess" target="_blank" rel="noopener">Open on Lichess</a>
+          <a class="button" id="lichess-editor" target="_blank" rel="noopener">Editor</a>
+          <button id="copy">Copy FEN</button>
+        </div>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <div class="row">
+          <button class="primary" id="save">Save &amp; next</button>
+          <button id="reject" title="this is not a chess diagram">Not a diagram</button>
+        </div>
+        <p class="muted" style="font-size:12px;margin:10px 0 0" id="save-note">
+          Saving records every square as training data, including the ones the model got right.
+        </p>
+      </div>
+    </section>
+  </div>
+</main>
+<div class="toast" id="toast"></div>
+<script src="/static/review.js"></script>
+</body>
+</html>

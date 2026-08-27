@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 import cv2
 import numpy as np
 
-from .grid import GridFit, cell_ink, centering_score, checkerboard_score, edge_profile, fit_grid
+from .grid import GridFit, cell_ink, checkerboard_score, edge_profile, fit_grid
 
 #: Smallest board we will read, in page pixels.  At 200 dpi this is about a
 #: two-centimetre diagram, below which the pieces are mush anyway.
@@ -27,10 +27,13 @@ MIN_BOARD_PX = 90
 #: Boards are square; allow for scanner skew and sloppy typesetting.
 MAX_ASPECT_SKEW = 0.18
 #: Below this a proposal is not a board.  Chosen by sweeping generated books:
-#: real diagrams scored 0.53 and up, page furniture 0.19 and down, so this sits
-#: in the middle of a wide empty band.  It leans towards recall on purpose --
+#: real diagrams scored 0.26 and up, page furniture 0.16 and down.  It leans
+#: towards recall on purpose --
 #: a false positive costs one keystroke in review, a missed diagram costs the page.
-SCORE_THRESHOLD = 0.35
+SCORE_THRESHOLD = 0.30
+#: A proposal this much inside a better-scoring one is a patch of that board,
+#: not a second diagram.
+CONTAINMENT_LIMIT = 0.7
 
 
 @dataclass
@@ -133,6 +136,16 @@ def _iou(a: tuple[float, ...], b: tuple[float, ...]) -> float:
     return inter / (area_a + area_b - inter)
 
 
+def _containment(inner: tuple[float, ...], outer: tuple[float, ...]) -> float:
+    """What fraction of ``inner`` lies inside ``outer``."""
+    ix0, iy0 = max(inner[0], outer[0]), max(inner[1], outer[1])
+    ix1, iy1 = min(inner[2], outer[2]), min(inner[3], outer[3])
+    if ix1 <= ix0 or iy1 <= iy0:
+        return 0.0
+    area = (inner[2] - inner[0]) * (inner[3] - inner[1])
+    return ((ix1 - ix0) * (iy1 - iy0)) / area if area > 0 else 0.0
+
+
 def _dedupe(boxes: list[tuple[float, float, float, float]], iou_threshold: float = 0.85) -> list:
     """Drop proposals that are near-copies of one we already have."""
     kept: list[tuple[float, float, float, float]] = []
@@ -180,16 +193,13 @@ def content_score(gray: np.ndarray, grid: GridFit) -> tuple[float, dict]:
     )
     extension = float(np.clip(1.0 - (beyond - 0.35) / 0.4, 0.0, 1.0))
 
-    centering = centering_score(gray, grid)
-
     meta = {
         "occupied_cells": count,
         "mean_ink": round(mean_ink, 4),
         "occupancy_score": round(occupancy, 4),
         "lattice_extends": round(beyond, 4),
-        "centering": round(centering, 4),
     }
-    return occupancy * extension * centering, meta
+    return occupancy * extension, meta
 
 
 def _profile_at(profile: np.ndarray, position: float) -> float:
@@ -300,12 +310,16 @@ def detect_boards(
         detections.append(Detection(box=grid.box, grid=grid, source=source, score=score, meta=meta))
 
     # Two proposal sources landing on the same board is the normal case; keep
-    # the better fit of the two.
+    # the better fit of the two.  A box mostly inside a better one is dropped
+    # even when their overlap is small: that is a patch of a board being read as
+    # a board of its own, which a chess page never actually contains.
     detections.sort(key=lambda d: -d.score)
     kept: list[Detection] = []
     for detection in detections:
-        if all(_iou(detection.box, other.box) < 0.5 for other in kept):
-            kept.append(detection)
+        if any(_iou(detection.box, other.box) >= 0.5 or _containment(detection.box, other.box) > CONTAINMENT_LIMIT
+               for other in kept):
+            continue
+        kept.append(detection)
     kept.sort(key=lambda d: (d.box[1], d.box[0]))  # reading order down the page
     return kept
 

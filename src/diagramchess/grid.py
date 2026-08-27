@@ -224,46 +224,6 @@ def cell_ink(gray: np.ndarray, grid: GridFit) -> np.ndarray:
     return out
 
 
-def centering_score(gray: np.ndarray, grid: GridFit) -> float:
-    """How centred the ink is within each occupied cell, in 0..1.
-
-    Pieces are drawn in the middle of their squares, so if the lattice is
-    aligned the dark pixels in an occupied cell cluster around its centre, and
-    if it is half a cell out they pile up against the edges.  That makes this
-    the check that tells a right division of a board from a wrong one -- and it
-    works even on a board whose interior rules have been printed or scanned away.
-    """
-    shades = cell_shades(gray, grid)
-    ink = cell_ink(gray, grid)
-    h, w = gray.shape[:2]
-    offsets: list[float] = []
-    for row in range(8):
-        for col in range(8):
-            if ink[row, col] <= 0.08:
-                continue
-            x0, y0, x1, y1 = grid.cell_box(row, col)
-            xs0, ys0 = int(max(0, round(x0))), int(max(0, round(y0)))
-            xs1, ys1 = int(min(w, round(x1))), int(min(h, round(y1)))
-            if xs1 - xs0 < 3 or ys1 - ys0 < 3:
-                continue
-            patch = gray[ys0:ys1, xs0:xs1]
-            mask = (patch < shades[row, col] - 45).astype(np.float32)
-            total = float(mask.sum())
-            if total <= 0:
-                continue
-            ys, xs = np.nonzero(mask)
-            cx = float(xs.mean()) / max(1, patch.shape[1] - 1) - 0.5
-            cy = float(ys.mean()) / max(1, patch.shape[0] - 1) - 0.5
-            offsets.append(float(np.hypot(cx, cy)))
-    if not offsets:
-        return 0.0
-    # Measured over rendered diagrams: an aligned lattice puts the median
-    # offset near 0.06 of a cell, a lattice half a cell out puts it near 0.25.
-    # The band between those two is where this score does its work.
-    offset = float(np.median(offsets))
-    return float(np.clip((0.26 - offset) / 0.14, 0.0, 1.0))
-
-
 def checkerboard_score(gray: np.ndarray, grid: GridFit) -> float:
     """How strongly the cell shades alternate like a chessboard, in 0..1.
 

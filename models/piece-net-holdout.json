@@ -1,0 +1,28 @@
+{
+  "square_size": 48,
+  "classes": [
+    ".",
+    "P",
+    "N",
+    "B",
+    "R",
+    "Q",
+    "K",
+    "p",
+    "n",
+    "b",
+    "r",
+    "q",
+    "k"
+  ],
+  "temperature": 0.5246433615684509,
+  "metrics": {
+    "val_accuracy": 0.99975,
+    "train_styles": "cburnett,dejavu",
+    "verified_squares": 0,
+    "heldout_style": "freeserif",
+    "heldout_style_accuracy": 1.0
+  },
+  "trained_at": "2026-08-27T09:27:00+00:00",
+  "notes": "12x350 steps, batch 256"
+}

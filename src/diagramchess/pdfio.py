@@ -158,13 +158,30 @@ def text_near(
     page_index: int,
     box: tuple[float, float, float, float],
     render: PageRender,
-    margin_px: float = 60.0,
+    margin_frac: float = 0.30,
 ) -> str:
-    """Text printed just around a diagram, where books put 'Black to play'."""
+    """Text printed just around a diagram, where books put 'Black to play'.
+
+    The band directly under the diagram is tried first, because that is where
+    captions go and because it excludes the body text that would otherwise
+    crowd them out.  Only if nothing is printed there do we widen to the whole
+    surround, which catches the books that caption above or beside instead.
+
+    The margin scales with the diagram because captions do: a book that prints
+    a diagram twice as large leaves twice as much air under it, and a fixed
+    margin in pixels finds the caption on one book and misses it on the next.
+    """
     page = doc[page_index]
     x0, y0, x1, y1 = box
-    rect = render.to_points((x0 - margin_px, y0 - margin_px, x1 + margin_px, y1 + margin_px))
-    rect = rect & page.rect
-    if rect.is_empty:
-        return ""
-    return page.get_text("text", clip=rect).strip()
+    margin_px = margin_frac * max(x1 - x0, y1 - y0)
+
+    below = (x0 - margin_px, y1, x1 + margin_px, y1 + margin_px)
+    around = (x0 - margin_px, y0 - margin_px, x1 + margin_px, y1 + margin_px)
+    for candidate in (below, around):
+        rect = render.to_points(candidate) & page.rect
+        if rect.is_empty:
+            continue
+        text = page.get_text("text", clip=rect).strip()
+        if text:
+            return text
+    return ""

@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>diagramchess</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <h1>diagramchess</h1>
+  <span class="muted" id="summary">loading…</span>
+  <span class="spacer"></span>
+  <span class="muted mono" id="model"></span>
+</header>
+<main>
+  <div class="grid-2">
+    <section class="card">
+      <h2 style="margin-top:0;font-size:15px">Books</h2>
+      <table id="books"><tbody></tbody></table>
+      <p class="muted" style="font-size:13px">
+        Add one with <span class="mono">dgc ingest &lt;file.pdf&gt;</span>.
+      </p>
+    </section>
+    <section class="card">
+      <div class="row" style="margin-bottom:12px">
+        <h2 style="margin:0;font-size:15px">Review queue</h2>
+        <span class="spacer"></span>
+        <label class="muted" style="font-size:13px">
+          <select id="status">
+            <option value="pending" selected>needs review</option>
+            <option value="verified">verified</option>
+            <option value="rejected">rejected</option>
+            <option value="">everything</option>
+          </select>
+        </label>
+        <label class="muted" style="font-size:13px">
+          <select id="order">
+            <option value="uncertain" selected>least confident first</option>
+            <option value="page">page order</option>
+            <option value="recent">recently touched</option>
+          </select>
+        </label>
+      </div>
+      <table id="queue">
+        <thead><tr><th>#</th><th>page</th><th>caption</th><th>confidence</th><th>detection</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <p class="muted" id="empty" style="display:none">Nothing here yet.</p>
+    </section>
+  </div>
+</main>
+<script src="/static/index.js"></script>
+</body>
+</html>

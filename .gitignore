@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+build/
+dist/
+
+# The workspace the tool creates: page images, crops, checkpoints, the database.
+.diagramchess/
+*.truth.json

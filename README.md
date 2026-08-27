@@ -94,23 +94,28 @@ are what teach it that its confident answers are correct.
 
 `dgc accuracy` compares what the model said against what you said, on the
 diagrams you have already checked. That is the only number that answers the
-question you actually care about, and it is the one to watch:
+question you actually care about, and it is the one to watch. Real output, from
+a generated book in a figurine style the model was never trained on:
 
 ```
-measured against 24 diagram(s) you verified (1536 squares)
-  squares read correctly:   99.61%
-  diagrams read perfectly:   87.50%
-  corrections per diagram:    0.25
-  above 99% confidence: 1450 squares, 0 of them wrong (0.00%)
-  mistakes it makes most:
-      white bishop read as white pawn: 3
-  -> the model now reads whole diagrams correctly 88% of the time; you could
+measured against 20 diagram(s) you verified (1280 squares)
+  squares read correctly:  100.00%
+  diagrams read perfectly: 100.00%
+  corrections per diagram:   0.00
+  above 99% confidence: 1266 squares, 0 of them wrong (0.00%)
+  above 95% confidence: 1275 squares, 0 of them wrong (0.00%)
+  above 90% confidence: 1278 squares, 0 of them wrong (0.00%)
+  -> the model now reads whole diagrams correctly 100% of the time; you could
      switch to spot-checking the low-confidence ones only
 ```
 
-The confidence bands are the useful part: if nothing above 99% confidence has
-ever been wrong across a few hundred squares, you can stop checking those and
-review only what falls below.
+When it is getting things wrong, the report also lists the mistakes it makes
+most (`white bishop read as white pawn: 3`), which is usually enough to tell
+whether the problem is the classifier or the lattice.
+
+The confidence bands are the part to act on. If nothing above 99% confidence
+has ever been wrong across a few thousand squares, stop checking those and
+review only what falls below — that is the point of the flag-threshold slider.
 
 ## Measured behaviour
 
@@ -121,14 +126,26 @@ include crosstable pages as distractors.
 |---|---|
 | diagram detection | 97% recall at 100% precision |
 | lattice accuracy | within 2% of a cell on 99% of renders |
-| classifier, synthetic validation | 99.9% of squares |
-| exemplars alone, unseen position in a known style | 58–64 of 64 squares |
+| classifier, synthetic validation | 99.98% of squares |
+| a model trained on **one** piece style, reading a book set in another | 1280/1280 squares, 20/20 diagrams |
+| exemplars alone, no model, unseen position in a known style | 58–64 of 64 squares |
 
-**Read the classifier number with suspicion.** It says the model reads diagrams
-*we drew* almost perfectly, and the tool draws them from three piece sets that
+**These numbers are saturated, and that is the most useful thing about them.**
+The tool draws its training diagrams from three piece sets, and a model trained
+on just one of them reads a book set in another perfectly — so the benchmark
+can no longer tell good from excellent, and it cannot show the review loop
+helping, because there is nothing left to fix. Three synthetic piece sets
 resemble each other far more than a real book's figurine font resembles any of
-them. Accuracy on your book will start lower. That gap is the reason the review
-loop exists, and `dgc accuracy` is what measures it honestly.
+them. **Expect your first real book to be harder than any of this.** The
+verification loop exists for that gap, and `dgc accuracy` is what measures it
+on your own pages rather than on ours.
+
+The one place a measurement did change the design: the exemplar bank used to be
+weighted by how much of the label set it covered, and over full simulated review
+runs that made readings *worse* — it overrode a model that was already right.
+It now speaks only in proportion to the model's doubt on each square, which
+measured as costing nothing while keeping the mechanism that settles the squares
+the model cannot.
 
 ## Commands
 
@@ -168,6 +185,27 @@ everything you verified.
   the pieces sit, which endgames can defeat.
 - **The wrong side to move.** Press `t`. It is read from the caption printed
   around the diagram when the book prints one.
+
+## The Lichess links
+
+Positions are handed over as URLs in Lichess's path form — the FEN with its
+spaces written as underscores:
+
+```
+https://lichess.org/analysis/standard/4k3/r1q3p1/.../RNB1KR2_w_Q_-_0_1
+https://lichess.org/editor/4k3/r1q3p1/.../RNB1KR2_w_Q_-_0_1
+```
+
+The editor link is the better landing place when a position still needs a
+tweak. Every screen also offers **Copy FEN**, which works regardless of what
+any site does with its URLs.
+
+A diagram cannot say whose move it is, whether anyone has castled, or which way
+round the board is meant to be read. The side to move is taken from the caption
+printed around the diagram when there is one; castling rights are granted when
+king and rook are both still on their home squares, the same rule board editors
+use; orientation is guessed from where the pieces sit. All three are one
+keystroke to change in review.
 
 ## Piece artwork
 

@@ -198,8 +198,10 @@ def create_app(workspace: Workspace, predictor: Predictor | None = None) -> Fast
         bank = bank_for_book(workspace, int(row["book_id"])) if body.get("use_exemplars", True) else None
         reading = app.state.predictor.read_squares(squares, bank)
         board = reading.to_board(caption=row["caption"])
+        active = workspace.active_model()
         workspace.set_prediction(diagram_id, reading.labels, reading.confidence,
-                                 board.to_fen(), board.orientation, board.side_to_move, None)
+                                 board.to_fen(), board.orientation, board.side_to_move,
+                                 int(active["id"]) if active else None)
         return {
             "ok": True,
             "source": reading.source,

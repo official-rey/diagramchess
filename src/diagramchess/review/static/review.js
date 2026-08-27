@@ -115,20 +115,26 @@ function buildPalette() {
   }
 }
 
+let fenRequest = 0;
+
 async function refreshFen() {
+  // Every keystroke repaints, and the replies can come back out of order;
+  // only the newest request is allowed to write to the panel.
+  const ticket = ++fenRequest;
   try {
     const data = await json('/api/fen', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ labels: state.labels, orientation: state.orientation, side_to_move: state.side }),
     });
+    if (ticket !== fenRequest) return;
     $('#fen').textContent = data.fen;
     $('#lichess').href = data.lichess;
     $('#lichess-editor').href = data.lichess_editor;
     const problems = $('#problems');
     problems.innerHTML = data.problems.map((p) => `<li>${p}</li>`).join('');
   } catch (error) {
-    $('#fen').textContent = error.message;
+    if (ticket === fenRequest) $('#fen').textContent = error.message;
   }
 }
 

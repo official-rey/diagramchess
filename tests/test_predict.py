@@ -110,3 +110,68 @@ def test_read_board_cuts_and_reads_in_one_step(piece_set):
     reading, crops = Predictor().read_board(rendered.image, rendered.grid, bank)
     assert crops.shape == (64, 48, 48)
     assert reading.labels == board.flat()
+
+
+class _FakeNet:
+    """A stand-in classifier with a fixed answer, so mixing can be tested alone."""
+
+    def __init__(self, label, confidence):
+        self.label, self.confidence = label, confidence
+
+    def probabilities(self, count=64):
+        from diagramchess.labels import NUM_CLASSES
+
+        rest = (1.0 - self.confidence) / (NUM_CLASSES - 1)
+        probs = np.full((count, NUM_CLASSES), rest, np.float32)
+        probs[:, LABEL_TO_INDEX[self.label]] = self.confidence
+        return probs
+
+
+def _predictor_with(net, monkeypatch):
+    predictor = Predictor()
+    monkeypatch.setattr(type(predictor), "has_model", property(lambda self: True))
+    monkeypatch.setattr(predictor, "_net_probabilities", lambda squares: net.probabilities(len(squares)),
+                        raising=False)
+    return predictor
+
+
+def test_a_confident_model_is_not_overridden_by_exemplars(piece_set, monkeypatch):
+    """Measured on full review runs: letting the bank assert itself in
+    proportion to its coverage made readings worse, because it overrode a model
+    that was already right.  It only speaks where the model hesitates."""
+    squares, board = _squares(POSITION, piece_set)
+    bank = ExemplarBank()
+    bank.add(squares, np.array([LABEL_TO_INDEX[c] for c in board.flat()]))
+
+    predictor = _predictor_with(_FakeNet("q", 0.999), monkeypatch)
+    reading = predictor.read_squares(squares, bank)
+    assert reading.source == "net+exemplars"
+    assert reading.labels == ["q"] * 64
+
+
+def test_exemplars_settle_a_square_the_model_is_unsure_of(piece_set, monkeypatch):
+    squares, board = _squares(POSITION, piece_set)
+    bank = ExemplarBank()
+    bank.add(squares, np.array([LABEL_TO_INDEX[c] for c in board.flat()]))
+
+    predictor = _predictor_with(_FakeNet("q", 0.20), monkeypatch)
+    reading = predictor.read_squares(squares, bank)
+    agree = sum(1 for a, b in zip(reading.labels, board.flat()) if a == b)
+    assert agree >= 55, f"{agree}/64 -- the bank did not get a say"
+
+
+def test_bank_authority_follows_coverage_not_volume(piece_set):
+    """A bank that has never seen a bishop must not drown out the model on one."""
+    squares, board = _squares(POSITION, piece_set)
+    labels = np.array([LABEL_TO_INDEX[c] for c in board.flat()])
+
+    wide = ExemplarBank()
+    wide.add(squares, labels)
+    narrow = ExemplarBank()
+    keep = labels == LABEL_TO_INDEX["."]
+    narrow.add(squares[keep], labels[keep])
+
+    # Volume says the opposite of what coverage says: the narrow bank holds
+    # about half the crops and knows exactly one class.
+    assert len(narrow) > 20
+    assert len(wide.classes) >= 11 and narrow.classes == {LABEL_TO_INDEX["."]}

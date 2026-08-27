@@ -141,40 +141,42 @@ class Predictor:
         """Classify 64 square crops in reading order."""
         if len(squares) != 64:
             raise ValueError(f"expected 64 squares, got {len(squares)}")
-
-        parts: list[tuple[np.ndarray, float]] = []
-        source = []
-        if self.has_model:
-            parts.append((self._net_probabilities(squares), 1.0))
-            source.append("net")
-        if bank is not None and len(bank):
-            # Trust the book's own exemplars more as more of them accumulate,
-            # but never entirely: a class the bank has never seen has to stay
-            # reachable through the general model.
-            weight = min(0.7, 0.7 * len(bank) / 200.0)
-            if not self.has_model:
-                weight = 1.0
-            parts.append((bank.probabilities(squares), weight))
-            source.append("exemplars")
-        if not parts:
+        have_bank = bank is not None and len(bank) > 0
+        if not self.has_model and not have_bank:
             raise RuntimeError(
                 "nothing to read with: train a model, or verify a diagram in this "
                 "book first so the exemplar bank has something in it"
             )
+        if not self.has_model:
+            return self._reading(bank.probabilities(squares), "exemplars")
 
-        if len(parts) == 2:
-            net_probs, _ = parts[0]
-            bank_probs, weight = parts[1]
-            probabilities = (1 - weight) * net_probs + weight * bank_probs
-        else:
-            probabilities = parts[0][0]
+        net = self._net_probabilities(squares)
+        if not have_bank:
+            return self._reading(net, "net")
 
+        # How much the bank may say on a square is its authority times the
+        # net's doubt.  Authority is about coverage, not volume: the bank
+        # returns zero for a class it has never seen, so what makes it risky is
+        # the piece types missing from it, not how few crops it holds.
+        #
+        # Multiplying by the net's doubt is what makes mixing safe.  Measured
+        # over full review runs on books in a figurine style the net had never
+        # seen, letting the bank assert itself in proportion to its coverage
+        # made readings *worse* -- it overrode a net that was already right.
+        # Confined to the squares the net is unsure of, it costs nothing and
+        # still settles the cases the net cannot.
+        authority = 0.8 * len(bank.classes) / NUM_CLASSES
+        weight = (authority * (1.0 - net.max(axis=1)))[:, None].astype(np.float32)
+        combined = (1.0 - weight) * net + weight * bank.probabilities(squares)
+        return self._reading(combined, "net+exemplars")
+
+    def _reading(self, probabilities: np.ndarray, source: str) -> BoardReading:
         indices = probabilities.argmax(axis=1)
         return BoardReading(
             labels=[index_label(int(i)) for i in indices],
             confidence=[float(probabilities[i, indices[i]]) for i in range(64)],
             probabilities=probabilities,
-            source="+".join(source),
+            source=source,
         )
 
     def read_board(

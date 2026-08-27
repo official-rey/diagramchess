@@ -102,3 +102,37 @@ def test_malformed_boards_are_rejected():
         BoardMatrix([["Z"] + ["."] * 7] + [["."] * 8] * 7)
     with pytest.raises(BoardError):
         BoardMatrix.from_fen(START, orientation="sideways")
+
+
+def test_exported_fens_parse_as_chess_positions():
+    """python-chess is the stand-in for whatever reads the FEN at the other end."""
+    import chess
+
+    for fen in (
+        START,
+        "8/8/4k3/8/2K5/8/6R1/8 w - - 0 1",
+        "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 0 1",
+        "2kr3r/ppp2ppp/2n1b3/3q4/3P4/2N1BN2/PPP2PPP/R2Q1RK1 w - - 0 1",
+    ):
+        board = BoardMatrix.from_fen(fen)
+        parsed = chess.Board(board.to_fen())
+        assert parsed.board_fen() == board.placement()
+        assert parsed.turn == (board.side_to_move == "w")
+
+
+def test_a_flipped_reading_still_produces_a_parseable_fen():
+    import chess
+
+    board = BoardMatrix.from_fen(START).flipped()
+    chess.Board(board.to_fen())     # raises if the placement is malformed
+
+
+def test_a_puzzle_fragment_still_exports_even_though_it_is_not_a_legal_game():
+    """Books print positions with no kings; we warn but must not refuse to export."""
+    board = BoardMatrix.empty()
+    board[3, 3] = "Q"
+    board[4, 4] = "r"
+    fen = board.to_fen()
+    assert fen.startswith("8/8/8/3Q4/4r3/8/8/8")
+    assert board.problems()                 # warned about
+    assert board.lichess_url()              # but still exported

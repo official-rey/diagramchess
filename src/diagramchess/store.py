@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import threading
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -114,6 +115,9 @@ class Workspace:
         (self.root / "pages").mkdir(exist_ok=True)
         (self.root / "models").mkdir(exist_ok=True)
         self.db_path = self.root / "diagramchess.db"
+        # The review server answers on a thread pool, so one connection is
+        # shared across threads and its transactions have to be serialised.
+        self._lock = threading.RLock()
         self._connection = sqlite3.connect(self.db_path, check_same_thread=False)
         self._connection.row_factory = sqlite3.Row
         self._connection.execute("PRAGMA foreign_keys = ON")
@@ -129,14 +133,16 @@ class Workspace:
 
     @contextmanager
     def write(self):
-        with self._connection:
+        with self._lock, self._connection:
             yield self._connection
 
     def query(self, sql: str, params: tuple = ()) -> list[sqlite3.Row]:
-        return list(self._connection.execute(sql, params))
+        with self._lock:
+            return list(self._connection.execute(sql, params))
 
     def one(self, sql: str, params: tuple = ()) -> sqlite3.Row | None:
-        return self._connection.execute(sql, params).fetchone()
+        with self._lock:
+            return self._connection.execute(sql, params).fetchone()
 
     def close(self) -> None:
         self._connection.close()

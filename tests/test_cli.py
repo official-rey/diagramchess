@@ -33,11 +33,14 @@ def test_demo_book_then_ingest_then_export(run, tmp_path):
 
     code, out = run("status")
     assert "diagrams: " in out and "verified: 0" in out
+    assert "packaged one" in out          # nothing trained, but one ships with it
 
     code, out = run("export", "--status", "all", "--format", "fen")
     assert code == 0
-    # Nothing has been read yet -- no model -- so there are no positions to print.
-    assert out.strip() == ""
+    # The packaged classifier reads them on ingest, with no training run first.
+    positions = [line for line in out.splitlines() if line.strip()]
+    assert positions, "the packaged model read nothing"
+    assert all(len(p.split()) == 6 for p in positions)
 
 
 def test_export_formats_after_a_review(run, tmp_path):
@@ -73,10 +76,43 @@ def test_export_formats_after_a_review(run, tmp_path):
     assert "nothing verified yet" in out or "measured against" in out
 
 
-def test_reread_without_a_model_explains_itself(run, capsys):
-    code = main(["-w", "/tmp/does-not-matter-ws", "reread"])
+def test_reread_uses_the_packaged_model_when_nothing_is_trained(run, tmp_path):
+    book = tmp_path / "sample.pdf"
+    run("demo-book", str(book), "--pages", "2", "--seed", "100")
+    run("ingest", str(book), "--no-read")
+
+    code, out = run("reread")
+    assert code == 0
+    assert "read " in out and "again" in out
+
+    code, out = run("export", "--status", "all", "--format", "fen")
+    assert [line for line in out.splitlines() if line.strip()]
+
+
+def test_without_any_model_the_error_says_what_to_do(tmp_path, monkeypatch, capsys):
+    """Installed without the packaged checkpoint, reread has to explain itself."""
+    import diagramchess.model as model_module
+
+    monkeypatch.setattr(model_module, "bundled_model", lambda: None)
+    code = main(["-w", str(tmp_path / "ws"), "reread"])
     assert code == 1
-    assert "no model" in capsys.readouterr().err
+    assert "no model available" in capsys.readouterr().err
+
+
+def test_the_workspace_model_wins_over_the_packaged_one(tmp_path):
+    """Order of preference: what you asked for, then yours, then ours."""
+    from diagramchess.cli import _predictor
+    from diagramchess.model import bundled_model
+    from diagramchess.store import Workspace
+
+    workspace = Workspace(tmp_path / "ws")
+    predictor, _ = _predictor(workspace, None)
+    assert predictor is not None and predictor.has_model
+
+    trained = bundled_model()          # stand in for a model you trained
+    workspace.register_model(trained, "2026-08-27T00:00:00+00:00", {"val_accuracy": 1.0})
+    _, model_id = _predictor(workspace, None)
+    assert model_id == int(workspace.active_model()["id"])
 
 
 def test_unknown_model_id_is_reported(run):

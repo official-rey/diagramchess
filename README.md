@@ -12,18 +12,25 @@ usually enough to make the rest of that book read cleanly.
 
 ```
 dgc demo-book sample.pdf      # a generated chess book, if you want to try it first
-dgc train                     # a cold-start classifier; the default run took 27 min on 4 CPU cores
 dgc ingest your-book.pdf      # find the diagrams and read them
 dgc review                    # check them; corrections are saved as training data
 dgc accuracy                  # is it good enough to stop checking every one?
 dgc train && dgc reread       # fold your corrections back in
 ```
 
+A classifier trained on synthetic diagrams ships with the package, so there is
+no training run to sit through before the first book. `dgc train` replaces it
+with one that has seen your corrections, which is where the accuracy on *your*
+books comes from.
+
 ## Installing
 
 ```
 python -m pip install -e '.[ml]'
 ```
+
+This includes a classifier trained on synthetic diagrams, so `dgc ingest` reads
+positions straight away.
 
 The `ml` extra pulls in PyTorch, which is only needed for training and for the
 neural classifier. Everything else — finding diagrams, the review screen,
@@ -130,6 +137,7 @@ include crosstable pages as distractors.
 | a model trained on **one** piece style, reading a book set in another | 1280/1280 squares, 20/20 diagrams |
 | exemplars alone, no model, unseen position in a known style | 58–64 of 64 squares |
 | the same books re-scanned: no text layer, skewed, JPEG at quality 72 | 32/32 diagrams, no false positives |
+| the packaged model on a fresh generated book, nothing trained | 896/896 squares, 14/14 diagrams |
 
 **These numbers are saturated, and that is the most useful thing about them.**
 The tool draws its training diagrams from three piece sets, and a model trained

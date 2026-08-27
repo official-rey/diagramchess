@@ -105,13 +105,18 @@ def _workspace(args):
 
 
 def _predictor(workspace, explicit: Path | None, required: bool = False):
-    """Load the classifier the user asked for, or the workspace's active one."""
+    """Load the classifier the user asked for, the workspace's active one, or
+    the checkpoint that ships with the package -- in that order, so a fresh
+    install reads a book immediately and a retrained model takes over the
+    moment there is one."""
     from .predict import Predictor
+
+    from .model import bundled_model
 
     path = explicit
     if path is None:
         active = workspace.active_model()
-        path = Path(active["path"]) if active else None
+        path = Path(active["path"]) if active else bundled_model()
     if path is None:
         if required:
             raise RuntimeError("no model available; run 'dgc train' first")
@@ -142,7 +147,7 @@ def cmd_ingest(args) -> int:
     if not args.no_read:
         predictor, model_id = _predictor(workspace, args.model)
         if predictor is None:
-            print("no model yet: detecting diagrams without reading them.\n"
+            print("no model and none packaged: detecting diagrams without reading them.\n"
                   "  run 'dgc train' to get one, then 'dgc reread'.", file=sys.stderr)
 
     # Redraw the progress line in place on a terminal; when the output is being
@@ -315,7 +320,14 @@ def cmd_status(args) -> int:
         for key in sorted(metrics):
             print(f"      {key}: {metrics[key]}")
     else:
-        print("  active model: none (run 'dgc train')")
+        from .model import bundled_model
+
+        packaged = bundled_model()
+        if packaged:
+            print(f"  active model: none registered, using the packaged one at {packaged}")
+            print("      run 'dgc train' once you have verified some diagrams")
+        else:
+            print("  active model: none (run 'dgc train')")
     for book in workspace.books():
         print(f"  book {book['id']}: {book['title']} "
               f"({book['verified_count']}/{book['diagram_count']} verified)")

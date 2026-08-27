@@ -41,11 +41,6 @@ class BoardReading:
     def min_confidence(self) -> float:
         return float(min(self.confidence)) if self.confidence else 0.0
 
-    def uncertain_squares(self, threshold: float = 0.9) -> list[int]:
-        """Indices the reader is not sure about, least sure first."""
-        indices = [i for i, c in enumerate(self.confidence) if c < threshold]
-        return sorted(indices, key=lambda i: self.confidence[i])
-
     def to_board(self, caption: str | None = None, orientation: str | None = None) -> BoardMatrix:
         rows = [self.labels[r * 8:(r + 1) * 8] for r in range(8)]
         board = BoardMatrix(

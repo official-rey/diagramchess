@@ -92,9 +92,21 @@ def test_reading_to_board_carries_orientation_and_caption():
     assert board.to_fen().startswith("r1bqkbnr/")
 
 
-def test_uncertain_squares_are_ordered_worst_first():
+def test_min_confidence_is_the_worst_square():
     confidence = [0.99] * 64
-    confidence[10], confidence[20], confidence[30] = 0.4, 0.2, 0.85
+    confidence[10], confidence[20] = 0.4, 0.2
     reading = BoardReading(["."] * 64, confidence, np.zeros((64, 13), np.float32))
-    assert reading.uncertain_squares(0.9) == [20, 10, 30]
     assert reading.min_confidence == pytest.approx(0.2)
+
+
+def test_read_board_cuts_and_reads_in_one_step(piece_set):
+    """The one-shot path: a board picture and its grid in, a position out."""
+    board = BoardMatrix.from_fen(POSITION)
+    rendered = render_diagram(board, DiagramStyle(piece_set=piece_set, cell_px=44))
+    bank = ExemplarBank()
+    squares, _ = _squares(POSITION, piece_set)
+    bank.add(squares, np.array([LABEL_TO_INDEX[c] for c in board.flat()]))
+
+    reading, crops = Predictor().read_board(rendered.image, rendered.grid, bank)
+    assert crops.shape == (64, 48, 48)
+    assert reading.labels == board.flat()

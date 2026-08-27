@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 import cv2
@@ -27,7 +27,6 @@ class IngestReport:
     stored: int = 0
     predicted: int = 0
     skipped_existing: int = 0
-    per_page: list[int] = field(default_factory=list)
 
     def describe(self) -> str:
         return (
@@ -67,7 +66,6 @@ def ingest(
         proposals += pdfio.vector_drawing_boxes(doc, page_index, render)
         detections = detect_boards(render.image, proposals)
         report.detected += len(detections)
-        report.per_page.append(len(detections))
 
         if cache_pages and detections:
             cv2.imwrite(str(workspace.page_path(book_id, page_index)), render.image)

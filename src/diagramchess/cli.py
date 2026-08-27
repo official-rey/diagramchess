@@ -64,7 +64,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--book", type=int)
     p.add_argument("--status", default="verified",
                    choices=["verified", "pending", "rejected", "all"])
-    p.add_argument("--format", default="text", choices=["text", "fen", "csv", "json", "pgn"])
+    p.add_argument("--format", default="text",
+                   choices=["text", "board", "fen", "csv", "json", "pgn"])
     p.set_defaults(func=cmd_export)
 
     p = sub.add_parser("accuracy", help="how often the model agrees with your corrections")
@@ -144,12 +145,17 @@ def cmd_ingest(args) -> int:
                   "  run 'dgc train' to get one, then 'dgc reread'.", file=sys.stderr)
 
     for pdf in args.pdf:
-        def progress(page_index: int, count: int, total=None) -> None:
-            print(f"\r  page {page_index + 1}: {count} diagram(s)", end="", flush=True)
+        found = 0
+
+        def progress(page_index: int, count: int) -> None:
+            nonlocal found
+            found += count
+            print(f"\r  {pdf.name}: page {page_index + 1}, {found} diagram(s) so far",
+                  end="\033[K", flush=True)
 
         report = ingest(workspace, pdf, dpi=args.dpi, pages=_page_range(args.pages),
                         predictor=predictor, model_id=model_id, progress=progress)
-        print(f"\r{pdf.name}: {report.describe()}" + " " * 20)
+        print(f"\r{pdf.name}: {report.describe()}\033[K")
     return 0
 
 
@@ -249,6 +255,18 @@ def cmd_export(args) -> int:
             print(f'[FEN "{fen}"]')
             print(f'[Annotator "diagramchess, page {row["page"] + 1}"]')
             print("*\n")
+        return 0
+
+    if args.format == "board":
+        for row in rows:
+            fen = row["fen"] or row["predicted_fen"]
+            if not fen:
+                continue
+            board = BoardMatrix.from_fen(fen)
+            caption = (row["caption"] or "").splitlines()
+            print(f'#{row["id"]} page {row["page"] + 1}  {caption[0] if caption else ""}')
+            print(board.ascii())
+            print(f"  {board.lichess_url()}\n")
         return 0
 
     for row in rows:

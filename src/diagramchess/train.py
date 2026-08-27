@@ -211,11 +211,3 @@ def train(
     )
     path = save_checkpoint(checkpoint, output)
     return TrainReport(path, metrics, history, time.time() - started)
-
-
-def confusion(predicted: np.ndarray, actual: np.ndarray) -> np.ndarray:
-    """Confusion matrix over the label set, actual by predicted."""
-    matrix = np.zeros((NUM_CLASSES, NUM_CLASSES), dtype=np.int64)
-    for a, p in zip(actual, predicted):
-        matrix[int(a), int(p)] += 1
-    return matrix

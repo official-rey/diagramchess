@@ -146,15 +146,6 @@ def _containment(inner: tuple[float, ...], outer: tuple[float, ...]) -> float:
     return ((ix1 - ix0) * (iy1 - iy0)) / area if area > 0 else 0.0
 
 
-def _dedupe(boxes: list[tuple[float, float, float, float]], iou_threshold: float = 0.85) -> list:
-    """Drop proposals that are near-copies of one we already have."""
-    kept: list[tuple[float, float, float, float]] = []
-    for box in sorted(boxes, key=lambda b: -(b[2] - b[0]) * (b[3] - b[1])):
-        if all(_iou(box, other) < iou_threshold for other in kept):
-            kept.append(box)
-    return kept
-
-
 #: A cell holding a piece is far darker than this; a cell holding a table's
 #: digit is not.  This is the number that separates a diagram from a crosstable.
 OCCUPIED_INK = 0.08

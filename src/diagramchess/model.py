@@ -103,15 +103,6 @@ class Checkpoint:
     trained_at: str = ""
     notes: str = ""
 
-    def summary(self) -> str:
-        parts = [f"{len(self.classes)} classes", f"{self.square_size}px squares"]
-        for key in ("val_accuracy", "heldout_style_accuracy", "verified_accuracy"):
-            if key in self.metrics:
-                parts.append(f"{key}={self.metrics[key]:.4f}")
-        if self.temperature != 1.0:
-            parts.append(f"T={self.temperature:.2f}")
-        return ", ".join(parts)
-
 
 def save_checkpoint(checkpoint: Checkpoint, path: str | Path) -> Path:
     torch = _torch()

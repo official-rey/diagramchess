@@ -144,18 +144,24 @@ def cmd_ingest(args) -> int:
             print("no model yet: detecting diagrams without reading them.\n"
                   "  run 'dgc train' to get one, then 'dgc reread'.", file=sys.stderr)
 
+    # Redraw the progress line in place on a terminal; when the output is being
+    # piped to a file, say nothing until there is something worth recording.
+    live = sys.stdout.isatty()
+
     for pdf in args.pdf:
         found = 0
 
         def progress(page_index: int, count: int) -> None:
             nonlocal found
             found += count
-            print(f"\r  {pdf.name}: page {page_index + 1}, {found} diagram(s) so far",
-                  end="\033[K", flush=True)
+            if live:
+                print(f"\r  {pdf.name}: page {page_index + 1}, {found} diagram(s) so far",
+                      end="\033[K", flush=True)
 
         report = ingest(workspace, pdf, dpi=args.dpi, pages=_page_range(args.pages),
                         predictor=predictor, model_id=model_id, progress=progress)
-        print(f"\r{pdf.name}: {report.describe()}\033[K")
+        print(f"\r{pdf.name}: {report.describe()}\033[K" if live
+              else f"{pdf.name}: {report.describe()}")
     return 0
 
 

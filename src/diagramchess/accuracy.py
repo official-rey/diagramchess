@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from .labels import EMPTY, LABELS, LABEL_NAMES, LABEL_TO_INDEX, NUM_CLASSES
+from .labels import LABELS, LABEL_NAMES, LABEL_TO_INDEX, NUM_CLASSES
 
 
 @dataclass

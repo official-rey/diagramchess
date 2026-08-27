@@ -11,7 +11,7 @@ import cv2
 import numpy as np
 
 from . import pdfio
-from .board import BoardMatrix, guess_orientation, guess_side_to_move
+from .board import BoardMatrix
 from .detect import Detection, crop_board, detect_boards
 from .grid import GridFit, extract_squares
 from .model import SQUARE_SIZE

@@ -14,14 +14,14 @@ bank is right about squares the general model finds ambiguous.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
 
 from .board import BoardMatrix, guess_orientation, guess_side_to_move
 from .grid import GridFit, extract_squares
-from .labels import LABELS, NUM_CLASSES, index_label
+from .labels import NUM_CLASSES, index_label
 from .model import SQUARE_SIZE, normalise
 
 #: Crops are matched at this size; the detail above it is print noise.

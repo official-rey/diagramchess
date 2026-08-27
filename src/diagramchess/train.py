@@ -46,6 +46,7 @@ class TrainReport:
     metrics: dict
     history: list[dict]
     seconds: float
+    trained_at: str = ""
 
     def describe(self) -> str:
         lines = [f"trained in {self.seconds:.0f}s -> {self.checkpoint_path}"]
@@ -210,4 +211,4 @@ def train(
         notes=f"{config.epochs}x{config.steps_per_epoch} steps, batch {config.batch_size}",
     )
     path = save_checkpoint(checkpoint, output)
-    return TrainReport(path, metrics, history, time.time() - started)
+    return TrainReport(path, metrics, history, time.time() - started, checkpoint.trained_at)

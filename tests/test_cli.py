@@ -83,3 +83,33 @@ def test_unknown_model_id_is_reported(run):
     code, out = run("status")
     with pytest.raises(SystemExit):
         main(["--help"])
+
+
+def test_training_registers_a_dated_model(tmp_path, monkeypatch, capsys):
+    """A registered model has to carry the date it was trained, or the model
+    list and the workspace status both show a blank where the version goes."""
+    from pathlib import Path
+
+    from diagramchess.store import Workspace
+    from diagramchess.train import TrainReport
+    import diagramchess.train as train_module
+
+    workspace_dir = tmp_path / "ws"
+
+    def fake_train(output, config=None, verified=None, progress=None):
+        Path(output).parent.mkdir(parents=True, exist_ok=True)
+        Path(output).write_bytes(b"not really a checkpoint")
+        return TrainReport(Path(output), {"val_accuracy": 0.5}, [], 1.0,
+                           trained_at="2026-08-27T12:00:00+00:00")
+
+    monkeypatch.setattr(train_module, "train", fake_train)
+    assert main(["-w", str(workspace_dir), "train", "--epochs", "1"]) == 0
+
+    workspace = Workspace(workspace_dir)
+    model = workspace.active_model()
+    assert model["trained_at"] == "2026-08-27T12:00:00+00:00"
+    assert Path(model["path"]).name.startswith("piece-net-")
+
+    code = main(["-w", str(workspace_dir), "models"])
+    out = capsys.readouterr().out
+    assert code == 0 and "2026-08-27T12:00:00+00:00" in out

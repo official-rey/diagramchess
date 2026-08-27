@@ -133,3 +133,64 @@ def test_detects_every_diagram_in_a_generated_book(demo_pdf):
     doc.close()
     assert spurious == 0
     assert found >= 0.9 * (found + missed), f"found {found}, missed {missed}"
+
+
+def test_finds_diagrams_in_a_scan_with_no_text_layer(tmp_path):
+    """Plenty of chess books only exist as scans.
+
+    There the PDF-level proposals are no help -- the single image on the page
+    *is* the page -- so everything rests on the image-based detector, and the
+    board arrives skewed, speckled and JPEG-compressed.
+    """
+    import cv2
+    import numpy as np
+
+    from diagramchess.demo import build_demo_book
+
+    clean = tmp_path / "clean.pdf"
+    build_demo_book(clean, pages=4, seed=500, style_seed=200)
+    meta = __import__("json").loads(clean.with_suffix(".truth.json").read_text())
+
+    source = pdfio.open_pdf(clean)
+    scanned = pymupdf.open()
+    for page_index in range(len(source)):
+        render = pdfio.render_page(source, page_index, dpi=150)
+        image = render.image
+        rng = np.random.default_rng(page_index)
+        matrix = cv2.getRotationMatrix2D((image.shape[1] / 2, image.shape[0] / 2),
+                                         rng.uniform(-0.6, 0.6), 1.0)
+        image = cv2.warpAffine(image, matrix, image.shape[::-1], borderValue=255)
+        image = np.clip(image.astype(np.float32) + rng.normal(0, 4, image.shape),
+                        0, 255).astype(np.uint8)
+        ok, buf = cv2.imencode(".jpg", image, [int(cv2.IMWRITE_JPEG_QUALITY), 72])
+        assert ok
+        page = scanned.new_page(width=source[page_index].rect.width,
+                                height=source[page_index].rect.height)
+        page.insert_image(page.rect, stream=buf.tobytes())
+    source.close()
+    out = tmp_path / "scan.pdf"
+    scanned.save(str(out))
+    scanned.close()
+
+    doc = pdfio.open_pdf(out)
+    assert not any(doc[i].get_text().strip() for i in range(len(doc))), "the scan still has text"
+    found = missed = spurious = 0
+    for page_index in range(len(doc)):
+        render = pdfio.render_page(doc, page_index, dpi=200)
+        proposals = pdfio.embedded_image_boxes(doc, page_index, render)
+        detections = detect_boards(render.image, proposals)
+        truth = [render.to_pixels(pymupdf.Rect(*d["box_pt"]))
+                 for d in meta["diagrams"] if d["page"] == page_index]
+        matched = set()
+        for detection in detections:
+            hit = next((i for i, box in enumerate(truth)
+                        if i not in matched and _iou(detection.box, box) > 0.5), None)
+            if hit is None:
+                spurious += 1
+            else:
+                matched.add(hit)
+                found += 1
+        missed += len(truth) - len(matched)
+    doc.close()
+    assert spurious == 0
+    assert missed == 0, f"missed {missed} of {found + missed} diagrams in the scan"

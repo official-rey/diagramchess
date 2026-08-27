@@ -129,6 +129,7 @@ include crosstable pages as distractors.
 | classifier, synthetic validation | 99.98% of squares |
 | a model trained on **one** piece style, reading a book set in another | 1280/1280 squares, 20/20 diagrams |
 | exemplars alone, no model, unseen position in a known style | 58–64 of 64 squares |
+| the same books re-scanned: no text layer, skewed, JPEG at quality 72 | 32/32 diagrams, no false positives |
 
 **These numbers are saturated, and that is the most useful thing about them.**
 The tool draws its training diagrams from three piece sets, and a model trained
@@ -184,7 +185,10 @@ everything you verified.
 - **The board is upside down.** Press `f`. Orientation is guessed from where
   the pieces sit, which endgames can defeat.
 - **The wrong side to move.** Press `t`. It is read from the caption printed
-  around the diagram when the book prints one.
+  around the diagram when the book prints one — a scanned book has no text
+  layer, so there every diagram starts at "white to move" until you say
+  otherwise. (An OCR pass over the caption band would fix that; it is not
+  built.)
 
 ## The Lichess links
 

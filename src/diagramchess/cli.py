@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from datetime import datetime
 from pathlib import Path
 
 from . import __version__
@@ -192,7 +193,10 @@ def cmd_train(args) -> int:
     else:
         print("training on synthetic diagrams only (nothing verified yet)")
 
-    output = args.output or (Path(workspace.root) / "models" / f"piece-net-{_next_index(workspace)}.pt")
+    # Name checkpoints by when they were trained, so a workspace keeps its
+    # history even after a model is deleted or rolled back to.
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    output = args.output or (Path(workspace.root) / "models" / f"piece-net-{stamp}.pt")
     config = TrainConfig(
         epochs=args.epochs, steps_per_epoch=args.steps, batch_size=args.batch_size,
         workers=args.workers, holdout_style=args.holdout_style,
@@ -205,15 +209,11 @@ def cmd_train(args) -> int:
     report = train(output, config, verified=verified, progress=progress)
     print(report.describe())
     model_id = workspace.register_model(
-        report.checkpoint_path, report.metrics.get("trained_at", ""), report.metrics,
+        report.checkpoint_path, report.trained_at, report.metrics,
         notes=f"epochs={args.epochs} steps={args.steps}", activate=not args.no_activate,
     )
     print(f"registered as model #{model_id}" + ("" if args.no_activate else " and made active"))
     return 0
-
-
-def _next_index(workspace) -> int:
-    return len(workspace.models()) + 1
 
 
 def cmd_reread(args) -> int:

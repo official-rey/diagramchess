@@ -29,9 +29,6 @@ books comes from.
 python -m pip install -e '.[ml]'
 ```
 
-This includes a classifier trained on synthetic diagrams, so `dgc ingest` reads
-positions straight away.
-
 The `ml` extra pulls in PyTorch, which is only needed for training and for the
 neural classifier. Everything else — finding diagrams, the review screen,
 exporting FENs, and reading a book from exemplars you have verified — works

@@ -7,13 +7,13 @@ from diagramchess import pdfio
 from diagramchess.detect import detect_boards, _iou
 from diagramchess.demo import build_demo_book
 
-def main(books=8, pages=6):
+def main(books=8, pages=6, seed0=100):
     tmp = Path(tempfile.mkdtemp())
     scored = []   # (score, is_true)
     total_gt = 0
     for b in range(books):
         pdf = tmp / f"book{b}.pdf"
-        build_demo_book(pdf, pages=pages, seed=100 + b, style_seed=200 + b)
+        build_demo_book(pdf, pages=pages, seed=seed0 + b, style_seed=seed0 + 100 + b)
         meta = json.loads(pdf.with_suffix(".truth.json").read_text())
         doc = pdfio.open_pdf(pdf)
         for pi in range(len(doc)):
@@ -41,4 +41,6 @@ def main(books=8, pages=6):
     print("highest false-positive scores:", [round(m, 3) for m in fps])
 
 if __name__ == "__main__":
-    main()
+    import sys
+    main(books=int(sys.argv[1]) if len(sys.argv) > 1 else 8,
+         seed0=int(sys.argv[2]) if len(sys.argv) > 2 else 100)

@@ -28,11 +28,14 @@ from .grid import GridFit, cell_ink, checkerboard_score, edge_profile, fit_grid
 MIN_BOARD_PX = 90
 #: Boards are square; allow for scanner skew and sloppy typesetting.
 MAX_ASPECT_SKEW = 0.18
-#: Below this a proposal is not a board.  Chosen by sweeping generated books:
-#: real diagrams scored 0.26 and up, page furniture 0.16 and down.  It leans
-#: towards recall on purpose -- a false positive costs one keystroke in review,
-#: a missed diagram costs you the position.
-SCORE_THRESHOLD = 0.30
+#: Below this a proposal is not a board.  Swept over 18 generated books (144
+#: diagrams) whose pages include tournament crosstables: every false positive
+#: scored 0.150 or under, and no true diagram scored between 0.150 and 0.228.
+#: This sits in the middle of that empty band.  Raising it to 0.30, where it
+#: used to be, bought no precision and cost 2% of recall -- which is the wrong
+#: trade, because a false positive costs one keystroke in review and a missed
+#: diagram costs you the position with nothing to notice.
+SCORE_THRESHOLD = 0.20
 #: A proposal this much inside a better-scoring one is a patch of that board,
 #: not a second diagram.
 CONTAINMENT_LIMIT = 0.7

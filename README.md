@@ -138,12 +138,21 @@ include crosstable pages as distractors.
 
 | | |
 |---|---|
-| detection on generated books, crosstable pages included | 97% recall at 100% precision |
+| 18 generated books, 144 diagrams, crosstable pages included | 97.2% recall at 100% precision |
+| across 11 figurine styles, same diagram styles | 87.5%–95.8% recall, no false positives |
 | lattice accuracy | within 2% of a cell on 99% of renders |
 | the same books re-scanned: no text layer, skewed, JPEG at quality 72 | 32/32 diagrams, no false positives |
 
-Detection is the settled part. It is not learned, it does not depend on the
-figurine style, and it survives a bad scan.
+Detection is the settled part. It is not learned, it survives a bad scan, and it
+genuinely does not care about the figurine style — swapping merida for alpha for
+`letter` moves recall by a few points and misses the *same* diagrams, because
+what defeats it is a board printed with no shading, no rules and no frame, not
+the pieces standing on it.
+
+Its threshold is set from the measured gap rather than by taste: over those 144
+diagrams every false positive scored 0.150 or under and no true diagram scored
+between 0.150 and 0.228, so the bar sits at 0.20, in the middle of the empty
+band.
 
 ### Reading the pieces
 

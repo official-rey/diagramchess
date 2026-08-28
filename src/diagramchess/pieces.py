@@ -177,6 +177,30 @@ def _fit_canvas(rgba: np.ndarray, size: int) -> np.ndarray:
     return canvas
 
 
+def rejected_styles_in(directory: str | Path) -> dict[str, str]:
+    """Style directories that were skipped, and why.
+
+    Surfaced by ``dgc pieces`` so that a style quietly vanishing from training
+    is something you can see rather than something you have to notice.
+    """
+    root = Path(directory)
+    if not root.is_dir():
+        return {}
+    rejected: dict[str, str] = {}
+    for child in sorted(root.iterdir()):
+        if not child.is_dir():
+            continue
+        missing = [s for s in SYMBOLS if piece_file(child, s) is None]
+        if missing:
+            if len(missing) < len(SYMBOLS):
+                rejected[child.name] = f"missing {len(missing)} of 12 pieces"
+            continue
+        candidate = PieceSet(child.name, "files", str(child))
+        if not fill_distinguishes_colours(candidate):
+            rejected[child.name] = "white and black artwork render alike"
+    return rejected
+
+
 def piece_sets_in(directory: str | Path, prefix: str = "") -> list[PieceSet]:
     """Every complete style found in a directory of style subdirectories.
 

@@ -406,6 +406,17 @@ def cmd_pieces(args) -> int:
         print(f"{piece_set.name:<22}{info.licence:<26}"
               f"{'yes' if info.shippable else 'no':<7}downloaded {note}")
 
+    from .pieces import rejected_styles_in
+
+    rejected = rejected_styles_in(directory)
+    if rejected:
+        print("\nskipped:")
+        for name, why in sorted(rejected.items()):
+            print(f"  {name:<20} {why}")
+        if any("alike" in why for why in rejected.values()):
+            print("  (styles whose colours render alike are usually a rasteriser\n"
+                  "   problem rather than the artwork's: check that cairosvg is installed)")
+
     if not extra:
         print("\nrun 'dgc pieces --fetch' to download several dozen more.\n"
               "More styles in training is the cheapest way to raise accuracy on a\n"

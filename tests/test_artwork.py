@@ -109,3 +109,25 @@ def test_the_book_fonts_are_kept_out_of_anything_shipped():
     for name in BOOK_FONTS:
         assert name in LICENCES
         assert not describe(name).shippable, f"{name} would end up in the shipped model"
+
+
+def test_rejected_styles_say_why(tmp_path):
+    from diagramchess.pieces import rejected_styles_in
+
+    solid = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50">'
+             '<circle cx="25" cy="25" r="20" fill="#111"/></svg>')
+
+    partial = tmp_path / "partial"
+    partial.mkdir()
+    for symbol in ("K", "Q", "k"):
+        (partial / f"{'w' if symbol.isupper() else 'b'}{symbol.upper()}.svg").write_text(solid)
+
+    monochrome = tmp_path / "monochrome"
+    monochrome.mkdir()
+    for symbol in SYMBOLS:
+        (monochrome / f"{'w' if symbol.isupper() else 'b'}{symbol.upper()}.svg").write_text(solid)
+
+    rejected = rejected_styles_in(tmp_path)
+    assert "missing" in rejected["partial"]
+    assert "alike" in rejected["monochrome"]
+    assert rejected_styles_in(tmp_path / "nowhere") == {}

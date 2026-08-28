@@ -149,3 +149,64 @@ def test_training_registers_a_dated_model(tmp_path, monkeypatch, capsys):
     code = main(["-w", str(workspace_dir), "models"])
     out = capsys.readouterr().out
     assert code == 0 and "2026-08-27T12:00:00+00:00" in out
+
+
+def test_pieces_lists_the_built_in_styles(run):
+    code, out = run("pieces")
+    assert code == 0
+    assert "cburnett" in out and "built in" in out
+    assert "dgc pieces --fetch" in out          # tells you how to get more
+
+
+def test_pieces_reports_downloaded_styles_with_their_licences(run, tmp_path):
+    """A style's licence decides whether a model trained on it can be shipped."""
+    styles = tmp_path / "ws" / "pieces" / "merida"
+    styles.mkdir(parents=True)
+    outline = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50">'
+               '<circle cx="25" cy="25" r="20" fill="#eee" stroke="#111" stroke-width="3"/></svg>')
+    solid = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50">'
+             '<circle cx="25" cy="25" r="20" fill="#111"/></svg>')
+    for symbol in ("P", "N", "B", "R", "Q", "K"):
+        (styles / f"w{symbol}.svg").write_text(outline)
+        (styles / f"b{symbol}.svg").write_text(solid)
+
+    code, out = run("pieces")
+    assert code == 0
+    assert "merida" in out and "GPLv2+" in out
+    assert "downloaded" in out
+
+
+def test_demo_book_can_pin_a_style(run, tmp_path):
+    book = tmp_path / "styled.pdf"
+    code, out = run("demo-book", str(book), "--pages", "2", "--style", "dejavu")
+    assert code == 0 and book.exists()
+
+    code = None
+    try:
+        main(["-w", str(tmp_path / "ws"), "demo-book", str(book), "--style", "nonesuch"])
+    except SystemExit:
+        pass
+    else:
+        code, _ = run("demo-book", str(book), "--style", "nonesuch")
+        assert code == 1
+
+
+def test_train_reports_how_many_styles_it_is_drawing(tmp_path, monkeypatch, capsys):
+    from pathlib import Path
+
+    from diagramchess.train import TrainReport
+    import diagramchess.train as train_module
+
+    seen = {}
+
+    def fake_train(output, config=None, verified=None, progress=None):
+        seen["styles"] = [s.name for s in config.piece_sets]
+        Path(output).parent.mkdir(parents=True, exist_ok=True)
+        Path(output).write_bytes(b"x")
+        return TrainReport(Path(output), {}, [], 1.0, trained_at="2026-08-27T00:00:00+00:00")
+
+    monkeypatch.setattr(train_module, "train", fake_train)
+    assert main(["-w", str(tmp_path / "ws"), "train"]) == 0
+    out = capsys.readouterr().out
+    assert "figurine style" in out
+    assert "cburnett" in seen["styles"]

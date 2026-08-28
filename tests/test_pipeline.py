@@ -87,3 +87,57 @@ def test_bank_for_book_only_holds_that_book(workspace, demo_pdf):
     bank = bank_for_book(workspace, int(rows[0]["book_id"]))
     assert len(bank) == 64
     assert len(bank_for_book(workspace, 999)) == 0
+
+
+def test_caption_is_read_from_above_as_well_as_below(workspace, tmp_path):
+    """Books caption on both sides of a diagram, and picking one is not safe.
+
+    A real game collection prints the players' names *above* each board;
+    reading only the band underneath attached every diagram to its neighbour's
+    header, silently and consistently.
+    """
+    import pymupdf
+
+    from diagramchess import pdfio
+    from diagramchess.board import BoardMatrix
+    from diagramchess.pieces import available_piece_sets
+    from diagramchess.render import DiagramStyle, render_diagram
+
+    rendered = render_diagram(
+        BoardMatrix.from_fen("r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 0 1"),
+        DiagramStyle(piece_set=available_piece_sets()[0], cell_px=30),
+    )
+    import cv2
+
+    ok, buf = cv2.imencode(".png", rendered.image)
+    assert ok
+
+    doc = pymupdf.open()
+    page = doc.new_page(width=400, height=520)
+    rect = pymupdf.Rect(80, 90, 320, 330)
+    page.insert_text((80, 78), "Hamppe - Steinitz, Vienna 1860", fontsize=9)
+    page.insert_image(rect, stream=buf.tobytes())
+    path = tmp_path / "above.pdf"
+    doc.save(str(path))
+    doc.close()
+
+    doc = pdfio.open_pdf(path)
+    render = pdfio.render_page(doc, 0, dpi=200)
+    box = render.to_pixels(rect)
+    caption = pdfio.text_near(doc, 0, box, render)
+    doc.close()
+    assert "Hamppe" in caption
+
+
+def test_caption_ignores_a_diagram_typeset_in_a_chess_font(workspace):
+    """Books that set diagrams in a chess font put the board in the text layer.
+
+    Those private-use characters are the diagram, not a caption; left in, the
+    coordinate strip along the board's edge looks like the nearest line of text.
+    """
+    from diagramchess.pdfio import _drop_glyph_runs
+
+    glyphs = "".join(chr(c) for c in range(0xF0C8, 0xF0D0))
+    assert _drop_glyph_runs(glyphs).strip() == ""
+    assert _drop_glyph_runs(f"{glyphs}Black to play").strip() == "Black to play"
+    assert _drop_glyph_runs("Diagram 4: White to move") == "Diagram 4: White to move"

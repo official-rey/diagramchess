@@ -162,10 +162,11 @@ def text_near(
 ) -> str:
     """Text printed just around a diagram, where books put 'Black to play'.
 
-    The band directly under the diagram is tried first, because that is where
-    captions go and because it excludes the body text that would otherwise
-    crowd them out.  Only if nothing is printed there do we widen to the whole
-    surround, which catches the books that caption above or beside instead.
+    Both the band above the diagram and the band below it are read, nearest
+    line from each, because books do both: puzzle collections tend to caption
+    underneath while game collections put the players' names on top.  Guessing
+    one and stopping got every caption in a real game collection off by one,
+    attaching each diagram to its neighbour's header.
 
     The margin scales with the diagram because captions do: a book that prints
     a diagram twice as large leaves twice as much air under it, and a fixed
@@ -175,13 +176,29 @@ def text_near(
     x0, y0, x1, y1 = box
     margin_px = margin_frac * max(x1 - x0, y1 - y0)
 
-    below = (x0 - margin_px, y1, x1 + margin_px, y1 + margin_px)
-    around = (x0 - margin_px, y0 - margin_px, x1 + margin_px, y1 + margin_px)
-    for candidate in (below, around):
+    def lines_in(candidate: tuple[float, float, float, float]) -> list[str]:
         rect = render.to_points(candidate) & page.rect
         if rect.is_empty:
-            continue
-        text = page.get_text("text", clip=rect).strip()
-        if text:
-            return text
-    return ""
+            return []
+        found = []
+        for line in page.get_text("text", clip=rect).splitlines():
+            line = _drop_glyph_runs(line).strip()
+            if line:
+                found.append(line)
+        return found
+
+    above = lines_in((x0 - margin_px, y0 - margin_px, x1 + margin_px, y0))
+    below = lines_in((x0 - margin_px, y1, x1 + margin_px, y1 + margin_px))
+    nearest = ([above[-1]] if above else []) + ([below[0]] if below else [])
+    return "\n".join(nearest)
+
+
+def _drop_glyph_runs(line: str) -> str:
+    """Remove private-use characters from a line of extracted text.
+
+    Books that typeset their diagrams in a chess font put the board itself in
+    the text layer, encoded in the private use area.  Those characters are the
+    diagram, not a caption -- left in, they make the coordinate strip along the
+    board's edge look like the nearest line of text.
+    """
+    return "".join(" " if 0xE000 <= ord(ch) <= 0xF8FF else ch for ch in line)

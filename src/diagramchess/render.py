@@ -34,6 +34,12 @@ class DiagramStyle:
     light: int = 245
     dark: int = 175
     checkered: bool = True
+    #: How the dark squares are filled: a flat tint, or a hatch or stipple.
+    #: Books print the textured kinds often, because they survive monochrome
+    #: reproduction better than a tint does -- and they are what a diagram
+    #: reader has to cope with, because fine texture reads as ink.
+    dark_fill: str = "solid"         # "solid", "hatch" or "stipple"
+    screen_ink: int = 40             # how black the screen's marks print
     grid_line: int | None = 110      # shade of the interior rules, None for none
     grid_width: int = 1
     border_width: int = 2
@@ -76,6 +82,42 @@ def _blend(canvas: np.ndarray, rgba: np.ndarray, x: int, y: int, style: DiagramS
     ).astype(np.uint8)
 
 
+def _dark_square(cell: int, style: DiagramStyle, x0: int, y0: int) -> np.ndarray:
+    """One dark square, filled the way this book fills them.
+
+    ``hatch`` draws diagonal strokes and ``stipple`` a regular dot screen, both
+    on the light ground, which is how a great many printed books shade a board.
+    The phase follows the square's position on the page so the texture runs
+    continuously across the board rather than restarting in every cell.
+    """
+    if style.dark_fill == "solid":
+        return np.full((cell, cell), style.dark, np.uint8)
+
+    # A press cannot print grey, so it prints sparse black marks that average to
+    # grey.  Modelling it that way -- dark ink, spacing set by the tone wanted --
+    # is both what the page really looks like and the hard case for anything
+    # measuring ink, because each mark is as dark as a piece is.
+    square = np.full((cell, cell), style.light, np.uint8)
+    ink = style.screen_ink
+    # Coverage measured off a real book's dark squares: about a fifth of the
+    # area, in near-black ink.  Capped there, because a denser screen than that
+    # is a dither rather than a hatch and prints as flat grey.
+    coverage = float(np.clip((style.light - style.dark) / max(1.0, style.light - ink), 0.05, 0.25))
+    ys, xs = np.mgrid[0:cell, 0:cell]
+    if style.dark_fill == "hatch":
+        period = max(3, round(1.0 / coverage))
+        mask = ((xs + x0) + (ys + y0)) % period == 0
+    elif style.dark_fill == "stipple":
+        period = max(2, round(coverage ** -0.5))
+        mask = ((xs + x0) % period == 0) & ((ys + y0) % period == 0)
+    else:
+        raise ValueError(f"unknown dark fill: {style.dark_fill!r}")
+    square[mask] = ink
+    # Every real rasteriser anti-aliases these marks, and the softened edge is
+    # part of what makes them separable from a piece's solid body.
+    return cv2.GaussianBlur(square, (0, 0), 0.6)
+
+
 def render_diagram(board: BoardMatrix, style: DiagramStyle) -> RenderedDiagram:
     """Draw a board matrix as a printed-looking diagram."""
     cell = style.cell_px
@@ -91,11 +133,12 @@ def render_diagram(board: BoardMatrix, style: DiagramStyle) -> RenderedDiagram:
 
     for row in range(8):
         for col in range(8):
-            shade = style.light
-            if style.checkered and (row + col) % 2 == 1:
-                shade = style.dark
             x0, y0 = origin_x + col * cell, origin_y + row * cell
-            canvas[y0:y0 + cell, x0:x0 + cell] = shade
+            is_dark = style.checkered and (row + col) % 2 == 1
+            if not is_dark:
+                canvas[y0:y0 + cell, x0:x0 + cell] = style.light
+            else:
+                canvas[y0:y0 + cell, x0:x0 + cell] = _dark_square(cell, style, x0, y0)
 
     if style.grid_line is not None:
         for k in range(9):
@@ -164,6 +207,11 @@ def random_style(rng: random.Random, piece_set: PieceSet, cell_px: int | None = 
         light=light,
         dark=dark,
         checkered=checkered,
+        # A real book is about as likely to shade its dark squares with a
+        # texture as with a flat tint, and the textured kinds are the ones that
+        # trip a naive ink measurement, so they are worth drawing often.
+        dark_fill=rng.choice(["solid", "solid", "hatch", "hatch", "stipple"]),
+        screen_ink=rng.randint(0, 80),
         grid_line=grid_line,
         grid_width=1,
         border_width=border_width,

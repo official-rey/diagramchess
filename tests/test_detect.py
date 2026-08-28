@@ -194,3 +194,33 @@ def test_finds_diagrams_in_a_scan_with_no_text_layer(tmp_path):
     doc.close()
     assert spurious == 0
     assert missed == 0, f"missed {missed} of {found + missed} diagrams in the scan"
+
+
+@pytest.mark.parametrize("dark_fill", ["hatch", "stipple"])
+def test_finds_a_board_whose_dark_squares_are_textured(piece_set, dark_fill):
+    """Books shade dark squares with hatching or a dot screen at least as often
+    as with a flat tint, because texture survives monochrome printing better.
+
+    Measured straight, every textured square reads as full of ink and the board
+    comes out with sixty of its cells occupied, which is not a chess position --
+    so the diagram was thrown away.  It was resolution-dependent too: coarse
+    renders blurred the texture into a tint and found the board, finer ones
+    resolved the strokes and did not.
+    """
+    import numpy as np
+
+    rendered = render_diagram(
+        BoardMatrix.from_fen(POSITION),
+        DiagramStyle(piece_set=piece_set, cell_px=40, dark_fill=dark_fill, screen_ink=35),
+    )
+    margin = 60
+    h, w = rendered.image.shape
+    page = np.full((h + 2 * margin, w + 2 * margin), 255, np.uint8)
+    page[margin:margin + h, margin:margin + w] = rendered.image
+
+    score, meta = content_score(page, rendered.grid.translated(margin, margin))
+    assert meta["occupied_cells"] <= 40, "the texture is being counted as pieces"
+    assert score > 0.5
+
+    detections = detect_boards(page)
+    assert len(detections) == 1, [d.score for d in detections]

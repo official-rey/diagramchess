@@ -38,7 +38,7 @@ without it.
 
 `cairosvg` is a hard dependency rather than an optional one, and it earns that:
 it is the only renderer here that draws gradient-filled piece artwork correctly,
-and getting that wrong is silent (see *Two measurements that changed the design*
+and getting that wrong is silent (see *Three measurements that changed the design*
 below). Without it the tool falls back to PyMuPDF and refuses any style it can
 no longer tell the colours apart in.
 
@@ -80,7 +80,7 @@ for a piece type it has not seen), and how far apart the two readers are across
 the board — because wide disagreement means the net is reading a figurine style
 it does not know, and that is exactly when the bank should win. Below two
 verified diagrams the bank is ignored entirely. The numbers behind all of that
-are under *Two measurements that changed the design*.
+are under *Three measurements that changed the design*.
 
 ## The review screen
 
@@ -144,14 +144,36 @@ what the flag-threshold slider is for.
 
 ## Measured behaviour
 
-Numbers below come from the tools in `tools/`, run against generated books that
-include crosstable pages as distractors.
+### On a real chess book
 
-### Finding the diagrams
+*The Woodpecker Method*, 7 sheets imposed six-up, 222 diagrams set in Chess
+Merida at about 23 pixels a square — small, dense, and printed with hatched dark
+squares rather than a flat tint.
 
 | | |
 |---|---|
-| 18 generated books, 144 diagrams, crosstable pages included | 97.2% recall at 100% precision |
+| diagrams found | **222 of 222**, no false positives |
+| squares read correctly | **14,208 of 14,208 — 100.00%** |
+| diagrams read perfectly | **222 of 222** |
+| corrections needed | **none** |
+
+That book is typeset in a chess font, so its text layer records the exact
+position of every diagram and exactly where each one sits on the page. Which
+means this is measured against real ground truth from a real book, not against
+anything the tool drew itself. `tools/` has the harness.
+
+Two caveats worth stating. Merida is one of the styles the packaged model is
+trained on, so this is a favourable book — a title set in a font unlike anything
+in training will be harder, which is what the held-out numbers below are for.
+And getting here needed a fix that only a real book could have prompted; see
+*hatched squares* below.
+
+### Finding the diagrams (generated books)
+
+| | |
+|---|---|
+| 12 generated books including hatched and stippled boards | 94.8% recall at 100% precision |
+| the same books with flat-tinted boards only | 97.2% recall at 100% precision |
 | across 11 figurine styles, same diagram styles | 87.5%–95.8% recall, no false positives |
 | lattice accuracy | within 2% of a cell on 99% of renders |
 | the same books re-scanned: no text layer, skewed, JPEG at quality 72 | 32/32 diagrams, no false positives |
@@ -203,7 +225,22 @@ with crops from your own book. On a *weak* model — one trained on a single sty
 which is what a genuinely unfamiliar book looks like — the same loop goes from
 24.0 errors a diagram to 4.5.
 
-### Two measurements that changed the design
+### Three measurements that changed the design
+
+**Hatched squares, found by the first real book.** Presses cannot print grey, so
+they print sparse black marks that average to grey — and a great many chess
+books shade their dark squares that way. Measuring ink per cell straight, every
+one of those squares reads as full, a board comes out with sixty of its
+sixty-four cells "occupied", and the diagram is discarded for not being a chess
+position. It was resolution-dependent too, which is worse: a coarse render blurs
+the screen into a flat tint and finds the board, a finer one resolves the strokes
+and does not. On the real book this threw away **65 of 222 diagrams**. A 3×3
+median filter before thresholding erases marks a pixel or two wide and leaves a
+piece's solid body untouched: **222 of 222**. The synthesiser now draws hatched
+and stippled boards too — calibrated against that book's actual screen, roughly a
+fifth coverage in near-black ink — so the case is in the tests from now on.
+
+
 
 **The exemplar bank's weighting was fitted to the wrong benchmark — twice.** It
 first spoke only where the model was unsure, which was tuned against books in

@@ -220,8 +220,34 @@ def cell_ink(gray: np.ndarray, grid: GridFit) -> np.ndarray:
             if xs1 <= xs0 or ys1 <= ys0:
                 continue
             patch = gray[ys0:ys1, xs0:xs1]
-            out[row, col] = float((patch < shades[row, col] - 45).mean())
+            out[row, col] = float((_despeckle(patch) < shades[row, col] - 45).mean())
     return out
+
+
+def _despeckle(patch: np.ndarray) -> np.ndarray:
+    """Remove fine texture, keeping solid shapes.
+
+    Printed books very often shade their dark squares with hatching or a
+    stipple rather than a flat tint, because that reproduces better in
+    monochrome.  Measured straight, every one of those squares reads as full of
+    ink and a board comes out with sixty of its cells "occupied" -- which is not
+    a chess position, so the whole diagram gets thrown away.  Worse, it depends
+    on resolution: at a coarse render the hatching blurs into a flat tint and
+    the board is found, and at a finer one it resolves into strokes and is not.
+
+    A median filter erases strokes a pixel or two wide and leaves a piece's body
+    untouched, because the body is solid across many pixels.
+
+    Kept deliberately small.  A wider filter erases hatching more thoroughly but
+    starts eating thin pieces too -- a pawn at twenty pixels a cell is not much
+    more solid than a hatch line -- and losing a pawn is worse than keeping some
+    texture, because the occupancy test this feeds has plenty of margin.
+    """
+    import cv2
+
+    if min(patch.shape[:2]) < 6:
+        return patch
+    return cv2.medianBlur(patch, 3)
 
 
 def checkerboard_score(gray: np.ndarray, grid: GridFit) -> float:

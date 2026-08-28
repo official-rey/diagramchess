@@ -36,6 +36,12 @@ neural classifier. Everything else — finding diagrams, the review screen,
 exporting FENs, and reading a book from exemplars you have verified — works
 without it.
 
+`cairosvg` is a hard dependency rather than an optional one, and it earns that:
+it is the only renderer here that draws gradient-filled piece artwork correctly,
+and getting that wrong is silent (see *Two measurements that changed the design*
+below). Without it the tool falls back to PyMuPDF and refuses any style it can
+no longer tell the colours apart in.
+
 ## How it works
 
 **Finding the diagrams.** Three independent proposal sources are tried on every

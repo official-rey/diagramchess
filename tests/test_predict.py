@@ -22,6 +22,20 @@ def _squares(fen, piece_set, seed=None, cell_px=44):
     return extract_squares(image, rendered.grid, size=48), board
 
 
+def _stocked_bank(piece_set, fens=(POSITION, OTHER)):
+    """A bank holding more than one verified diagram.
+
+    One diagram is deliberately not enough to give the bank a say -- it has a
+    single crop per class and no sense of how much a piece varies within the
+    book -- so anything testing the mixing has to stock it properly.
+    """
+    bank = ExemplarBank()
+    for fen in fens:
+        squares, board = _squares(fen, piece_set)
+        bank.add(squares, np.array([LABEL_TO_INDEX[c] for c in board.flat()]))
+    return bank
+
+
 @pytest.fixture(params=[s.name for s in available_piece_sets()])
 def piece_set(request):
     return next(s for s in available_piece_sets() if s.name == request.param)
@@ -145,8 +159,7 @@ def test_a_well_covered_bank_overrides_a_confidently_wrong_model(piece_set, monk
     unseen fonts that gate left 12.94 errors a diagram against 6.92 without it.
     """
     squares, board = _squares(POSITION, piece_set)
-    bank = ExemplarBank()
-    bank.add(squares, np.array([LABEL_TO_INDEX[c] for c in board.flat()]))
+    bank = _stocked_bank(piece_set)
 
     predictor = _predictor_with(_FakeNet("q", 0.999), monkeypatch)
     reading = predictor.read_squares(squares, bank)
@@ -155,13 +168,25 @@ def test_a_well_covered_bank_overrides_a_confidently_wrong_model(piece_set, monk
     assert agree >= 55, f"{agree}/64 -- the bank was talked over by a wrong model"
 
 
+def test_a_single_verified_diagram_does_not_yet_get_a_say(piece_set, monkeypatch):
+    """Measured on unseen fonts, a one-diagram bank made readings worse than the
+    model alone; from the second diagram on it helps at every size."""
+    squares, board = _squares(POSITION, piece_set)
+    thin = ExemplarBank()
+    thin.add(squares, np.array([LABEL_TO_INDEX[c] for c in board.flat()]))
+
+    predictor = _predictor_with(_FakeNet("q", 0.999), monkeypatch)
+    assert predictor.read_squares(squares, thin).labels == ["q"] * 64
+
+
 def test_a_narrow_bank_leaves_the_model_in_charge(piece_set, monkeypatch):
     """A bank holding one class must not drag every square towards it."""
     squares, board = _squares(POSITION, piece_set)
     labels = np.array([LABEL_TO_INDEX[c] for c in board.flat()])
     narrow = ExemplarBank()
-    keep = labels == LABEL_TO_INDEX["."]
-    narrow.add(squares[keep], labels[keep])
+    for _ in range(3):                      # enough crops, but only one class
+        keep = labels == LABEL_TO_INDEX["."]
+        narrow.add(squares[keep], labels[keep])
 
     predictor = _predictor_with(_FakeNet("q", 0.90), monkeypatch)
     reading = predictor.read_squares(squares, narrow)
@@ -170,8 +195,7 @@ def test_a_narrow_bank_leaves_the_model_in_charge(piece_set, monkeypatch):
 
 def test_exemplars_settle_a_square_the_model_is_unsure_of(piece_set, monkeypatch):
     squares, board = _squares(POSITION, piece_set)
-    bank = ExemplarBank()
-    bank.add(squares, np.array([LABEL_TO_INDEX[c] for c in board.flat()]))
+    bank = _stocked_bank(piece_set)
 
     predictor = _predictor_with(_FakeNet("q", 0.20), monkeypatch)
     reading = predictor.read_squares(squares, bank)

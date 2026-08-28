@@ -154,33 +154,64 @@ class Predictor:
         if not have_bank:
             return self._reading(net, "net")
 
-        # How much the bank may say is set by its coverage, not by its volume:
-        # it returns zero for a class it has never seen, so what makes it risky
-        # is the piece types missing from it, not how few crops it holds of the
-        # ones it has.  One verified middlegame covers nearly the whole label
-        # set; one verified king-and-pawn ending covers four classes.
-        #
-        # An earlier version also multiplied this by the net's doubt, so the
-        # bank spoke only where the net hesitated.  That was fitted to a
-        # benchmark drawn in the styles the net was trained on, where the net
-        # was right about everything and the only measurable effect was the
-        # damage the bank did.  Measured instead on books set in figurine fonts
-        # the net has never seen -- the case this whole mechanism exists for --
-        # the net is not merely wrong on several squares a diagram, it is
-        # *confidently* wrong, so gating on doubt silences the bank exactly when
-        # it is needed:
-        #
-        #     mean errors per diagram, four unseen fonts, banks of 1 to 12 diagrams
-        #       net alone                        14.38
-        #       weighted by the net's doubt      12.94
-        #       weighted by coverage (this)       6.92
-        #
-        # The cost is real but small and lands where it matters least: on books
-        # in a style the net already knows, coverage weighting adds about 0.08
-        # errors per diagram, on diagrams that hardly need reviewing anyway.
-        weight = 0.8 * len(bank.classes) / NUM_CLASSES
-        combined = (1.0 - weight) * net + weight * bank.probabilities(squares)
+        exemplar = bank.probabilities(squares)
+        weight = self._bank_weight(net, exemplar, bank)[:, None]
+        combined = (1.0 - weight) * net + weight * exemplar
         return self._reading(combined, "net+exemplars")
+
+    def _bank_weight(self, net: np.ndarray, exemplar: np.ndarray, bank: "ExemplarBank") -> np.ndarray:
+        """How much say the exemplar bank gets on each square, in 0..1.
+
+        Two things set it.
+
+        *Coverage*, because the bank returns zero for a class it has never seen:
+        what makes it risky is the piece types missing from it, not how few
+        crops it holds of the ones it has.  One verified middlegame covers
+        nearly the whole label set; one verified king-and-pawn ending covers
+        four classes.
+
+        *Whether the model looks lost on this book*, because the right answer
+        genuinely depends on that and nothing else here knows it.  When the two
+        readers disagree about a large part of the board, the model is probably
+        reading a figurine style it was never trained on; when they mostly
+        agree, it is fine and the bank should only break ties.  Disagreement
+        cannot say which reader is wrong, so it is a guess -- but it is a guess
+        made from the two readings we already have, needing no labels.
+
+        This was fitted twice, and the first fit was wrong both times it was
+        checked.  Measured as mean errors per diagram over books set in unseen
+        figurine fonts, with banks of one to twelve verified diagrams:
+
+            weighting            weak model    shipped model
+            model alone               11.34             0.94
+            by the model's doubt      10.91             0.65
+            by coverage alone          6.43             2.63
+            by coverage x doubt        8.43             0.65
+            this rule                  6.71             1.20
+
+        Nothing wins both columns.  Weighting by doubt alone is best against the
+        model that actually ships and four errors a diagram worse when the model
+        is out of its depth; weighting by coverage alone is the reverse.  This
+        rule is chosen on the worst case rather than the average, because the
+        hard column is the whole reason the exemplar bank exists -- and because
+        the cost of being second-best in the easy column is half a correction
+        per diagram, on diagrams that barely need reviewing.
+        """
+        # One verified diagram is not evidence.  Measured on unseen fonts, a
+        # bank built from a single diagram makes readings *worse* than the model
+        # alone -- it has one crop per class, no sense of how much a piece can
+        # vary within the book, and enough coverage to sound confident.  From
+        # the second diagram on it is an improvement at every bank size.
+        if len(bank) < 2 * 64:
+            return np.zeros(len(net), np.float32)
+
+        coverage = len(bank.classes) / NUM_CLASSES
+        disagreement = float((net.argmax(axis=1) != exemplar.argmax(axis=1)).mean())
+        # Six per cent of a board is ordinary noise between two readers; a
+        # quarter of it means one of them is not reading this book at all.
+        lost = float(np.clip((disagreement - 0.06) / 0.16, 0.0, 1.0))
+        doubt = 1.0 - net.max(axis=1)
+        return (0.8 * coverage * np.maximum(lost, doubt)).astype(np.float32)
 
     def _reading(self, probabilities: np.ndarray, source: str) -> BoardReading:
         indices = probabilities.argmax(axis=1)

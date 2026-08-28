@@ -19,11 +19,11 @@ dgc accuracy                  # is it good enough to stop checking every one?
 dgc train && dgc reread       # fold your corrections back in
 ```
 
-A classifier trained on synthetic diagrams ships with the package, so there is
-no training run to sit through before the first book. On a book set in a
-figurine font it has never seen it reads about 92% of squares — roughly five
-corrections a diagram — and the review loop takes that down to well under one.
-`dgc train` then replaces it with a model that has seen your corrections.
+A classifier ships with the package, so there is no training run to sit through
+before the first book. On a book set in a figurine font it has never seen it
+reads about 99% of squares — under one correction a diagram — and the review
+loop takes it lower still. `dgc train` then replaces it with a model that has
+seen your corrections.
 
 ## Installing
 
@@ -72,8 +72,15 @@ information the net can lean on.
 **Learning your book.** Alongside the net, an **exemplar bank** holds the crops
 you have verified in the book you are reading, matched by nearest neighbour.
 The net knows what chess pieces look like in general; the bank knows what they
-look like *in this book*. The bank's weight grows as it fills, and the net stays
-in the mix so a piece the bank has never seen is still reachable.
+look like *in this book*.
+
+How much say the bank gets is the fiddliest decision in the tool, and it is set
+by two things: how much of the label set the bank covers (it can never answer
+for a piece type it has not seen), and how far apart the two readers are across
+the board — because wide disagreement means the net is reading a figurine style
+it does not know, and that is exactly when the bank should win. Below two
+verified diagrams the bank is ignored entirely. The numbers behind all of that
+are under *Two measurements that changed the design*.
 
 ## The review screen
 
@@ -106,28 +113,34 @@ are what teach it that its confident answers are correct.
 
 `dgc accuracy` compares what the model said against what you said, on the
 diagrams you have already checked. That is the only number that answers the
-question you actually care about, and it is the one to watch. Real output, from
-a generated book in a figurine style the model was never trained on:
+question you actually care about. Real output, from a book set in `leipzig` —
+a font the model was never trained on, printed small and faintly:
 
 ```
 measured against 20 diagram(s) you verified (1280 squares)
-  squares read correctly:  100.00%
-  diagrams read perfectly: 100.00%
-  corrections per diagram:   0.00
-  above 99% confidence: 1266 squares, 0 of them wrong (0.00%)
-  above 95% confidence: 1275 squares, 0 of them wrong (0.00%)
-  above 90% confidence: 1278 squares, 0 of them wrong (0.00%)
-  -> the model now reads whole diagrams correctly 100% of the time; you could
-     switch to spot-checking the low-confidence ones only
+  squares read correctly:   92.81%
+  diagrams read perfectly:  10.00%
+  corrections per diagram:   4.60
+  above 99% confidence: 1016 squares, 8 of them wrong (0.79%)
+  above 95% confidence: 1062 squares, 16 of them wrong (1.51%)
+  above 90% confidence: 1084 squares, 20 of them wrong (1.85%)
+  mistakes it makes most:
+      white pawn read as white bishop: 39
+      black pawn read as black bishop: 22
+      white rook read as black rook: 10
+      white king read as white queen: 9
+  -> about 4.6 correction(s) per diagram; keep verifying, and retrain once you
+     have twenty or so diagrams done
 ```
 
-When it is getting things wrong, the report also lists the mistakes it makes
-most (`white bishop read as white pawn: 3`), which is usually enough to tell
-whether the problem is the classifier or the lattice.
-
-The confidence bands are the part to act on. If nothing above 99% confidence
-has ever been wrong across a few thousand squares, stop checking those and
-review only what falls below — that is the point of the flag-threshold slider.
+Two things to read off that. The **mistake list** tells you what kind of problem
+you have: pawn-for-bishop is the classifier struggling with a small figurine,
+while a run of colour flips points at the artwork or the printing rather than
+the shapes. The **confidence bands** tell you what a review threshold would
+cost: here 0.79% of the squares the model was 99% sure of were still wrong, so
+this is not yet a book to spot-check. When that figure reaches zero across a few
+thousand squares, stop checking those and review only what falls below — that is
+what the flag-threshold slider is for.
 
 ## Measured behaviour
 
@@ -162,40 +175,62 @@ your book is. `alpha`, `leipzig`, `companion` and `chess7` are the classic
 printed-book fonts and are deliberately kept out of training, so they are an
 honest test rather than a rehearsal.
 
-| | |
-|---|---|
-| synthetic validation, styles it *was* trained on | 99.98% of squares |
-| **unseen book fonts, per square** | **92.2%** |
-| **unseen book fonts, whole diagrams read perfectly** | **20 of 57** |
+The packaged model is trained on 19 figurine styles — 16 real ones under
+licences that allow redistribution, plus the three built in. Held-out results:
 
-So on a book it has not seen before, expect roughly five corrections a diagram
-to start with. That is the gap the review loop exists to close, and it does:
+| | trained on 3 styles | **trained on 19 (shipped)** |
+|---|---|---|
+| synthetic validation, styles it *was* trained on | 99.98% | 99.58% |
+| unseen book fonts, per square | 92.55% | **98.98%** |
+| unseen book fonts, diagrams read perfectly | 16 of 45 | **31 of 45** |
 
-| book set in `companion`, verifying in the order the tool asks for | errors per diagram |
-|---|---|
-| before any verification | 12.6 |
-| after 2 verified | 4.0 |
-| after 8 verified | 2.4 |
-| after 11 verified | 0.55, with 7 of 11 diagrams perfect |
+Training on real figurine artwork rather than three lookalikes cut the errors on
+an unseen book font from about five a diagram to about two thirds of one. That
+is the single biggest accuracy change in the project, and it costs nothing at
+run time — which is why `dgc pieces --fetch` is worth the two minutes.
 
-`letter` — a style that abandons figurines for initials — goes from 24.0 errors
-a diagram to 4.5. Neither of these is the model getting better; it is the
-exemplar bank filling up with crops from your own book.
+The review loop then takes it the rest of the way:
+
+| verified diagrams | `companion` | `leipzig` |
+|---|---|---|
+| 0 | 0.45 errors/diagram | 2.86 |
+| 2 | 0.15 | 2.90 |
+| 4 | 0.11 | 1.56 |
+| 6 | 0.06 | 0.94 |
+
+Neither of those is the model getting better; it is the exemplar bank filling up
+with crops from your own book. On a *weak* model — one trained on a single style,
+which is what a genuinely unfamiliar book looks like — the same loop goes from
+24.0 errors a diagram to 4.5.
 
 ### Two measurements that changed the design
 
-**The exemplar bank's weighting was fitted to the wrong benchmark.** It used to
-speak only where the model was unsure. That was tuned against books drawn in
-the styles the model was trained on, where the model was right about everything
-and the only measurable effect was the harm the bank could do. On unseen fonts
-the model is not merely wrong on several squares a diagram — it is *confidently*
-wrong, so doubt-gating silenced the bank exactly where it was needed:
+**The exemplar bank's weighting was fitted to the wrong benchmark — twice.** It
+first spoke only where the model was unsure, which was tuned against books in
+the styles the model already knew, where the model was right about everything
+and the only measurable effect was the harm the bank could do. Re-measured on
+unseen fonts, where the model is *confidently* wrong, that gate silenced the
+bank exactly where it was needed. So it was changed to weight by label coverage
+— and then the model got better, and coverage became the harmful one:
 
-| weighting | errors per diagram, four unseen fonts |
-|---|---|
-| model alone | 14.38 |
-| by the model's doubt | 12.94 |
-| by the bank's label coverage | **6.92** |
+| weighting | weak model | shipped model |
+|---|---|---|
+| model alone | 11.34 | 0.94 |
+| by the model's doubt | 10.91 | **0.65** |
+| by label coverage | **6.43** | 2.63 |
+| coverage × how lost the model looks *(shipped)* | 6.71 | 1.20 |
+
+Nothing wins both columns, so the rule is chosen on the worst case rather than
+the average: the hard column is the entire reason the bank exists, and being
+second-best in the easy column costs half a correction per diagram on diagrams
+that barely need reviewing. "How lost the model looks" is how much the two
+readers disagree across the whole board — no labels needed, just the two
+readings already in hand.
+
+A bank built from a *single* verified diagram is also ignored outright. It has
+one crop per class, no sense of how much a piece varies within a book, and just
+enough coverage to sound confident; measured, it made readings worse than the
+model alone. From the second diagram on it helps at every bank size.
 
 **A renderer bug was masquerading as a model failure.** Several figurine sets,
 merida among them, paint the white pieces' bodies with an SVG gradient, and

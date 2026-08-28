@@ -1,0 +1,26 @@
+{
+  "square_size": 48,
+  "classes": [
+    ".",
+    "P",
+    "N",
+    "B",
+    "R",
+    "Q",
+    "K",
+    "p",
+    "n",
+    "b",
+    "r",
+    "q",
+    "k"
+  ],
+  "temperature": 0.5558072924613953,
+  "metrics": {
+    "val_accuracy": 0.99575,
+    "train_styles": "cburnett,celtic,chessnut,fantasy,firi,kiwen-suwi,letter,merida,mpchess,papercut,pirouetti,pixel,rhosgfx,shapes,spatial,totoy,cburnett,dejavu,freeserif",
+    "verified_squares": 0
+  },
+  "trained_at": "2026-08-28T01:52:06+00:00",
+  "notes": "14x400 steps, batch 256"
+}

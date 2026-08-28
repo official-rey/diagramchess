@@ -38,7 +38,7 @@ without it.
 
 `cairosvg` is a hard dependency rather than an optional one, and it earns that:
 it is the only renderer here that draws gradient-filled piece artwork correctly,
-and getting that wrong is silent (see *Three measurements that changed the design*
+and getting that wrong is silent (see *Four measurements that changed the design*
 below). Without it the tool falls back to PyMuPDF and refuses any style it can
 no longer tell the colours apart in.
 
@@ -80,7 +80,7 @@ for a piece type it has not seen), and how far apart the two readers are across
 the board — because wide disagreement means the net is reading a figurine style
 it does not know, and that is exactly when the bank should win. Below two
 verified diagrams the bank is ignored entirely. The numbers behind all of that
-are under *Three measurements that changed the design*.
+are under *Four measurements that changed the design*.
 
 ## The review screen
 
@@ -165,10 +165,36 @@ anything the tool drew itself. `tools/` has the harness.
 Two caveats worth stating. Merida is one of the styles the packaged model is
 trained on, so this is a favourable book — a title set in a font unlike anything
 in training will be harder, which is what the held-out numbers below are for.
-And getting here needed two fixes that only a real book could have prompted: one
-for hatched squares, below, and one for captions -- this book prints each game's
-players *above* its board, and reading only the band underneath had been
-attaching every diagram to its neighbour's header, silently and consistently.
+And getting here needed three fixes that only a real book could have prompted:
+hatched squares and scanner noise, both below, and captions — this book prints
+each game's players *above* its board, and reading only the band underneath had
+been attaching every diagram to its neighbour's header, silently and
+consistently.
+
+### When the book is not a clean PDF
+
+A clean PDF scoring perfectly says little on its own — plenty of chess books
+only exist as photocopies, and plenty of readers photograph a page rather than
+scan it. The same 222 diagrams, put through what actually happens to a page
+(`tools/eval_stress.py`):
+
+| condition | detection recall | squares | corrections per diagram |
+|---|---|---|---|
+| clean, 200 dpi | 100.0% | 100.00% | 0.00 |
+| 150 dpi | 99.1% | 99.45% | 0.35 |
+| 120 dpi | 99.5% | 99.51% | 0.31 |
+| 100 dpi | 82.9% | 97.37% | 1.68 |
+| photocopy — 150 dpi, soft, noisy, JPEG 70, 0.4° skew | 94.6% | 98.69% | 0.84 |
+| poor scan — 120 dpi, blurred, noisy, JPEG 45, 0.8° skew | 65.3% | 81% | — |
+| phone photo — 110 dpi, soft, noisy, JPEG 35, 1.5° skew | 69.8% | 60% | — |
+
+**Ingest at 200 dpi if you can and 150 if you must.** Below about 120 dpi a
+diagram this size is under fifteen pixels a square and detection starts losing
+boards — not the classifier's fault, there is simply not enough board left.
+
+The last two rows were 48% and 26% before the scanner-noise fix below, which is
+worse than answering "empty" for every square. They are the reason that fix
+exists.
 
 ### Finding the diagrams (generated books)
 
@@ -227,7 +253,22 @@ with crops from your own book. On a *weak* model — one trained on a single sty
 which is what a genuinely unfamiliar book looks like — the same loop goes from
 24.0 errors a diagram to 4.5.
 
-### Three measurements that changed the design
+### Four measurements that changed the design
+
+**Scanner noise read as pieces, found by stressing that same book.** Each square
+crop used to be divided by its own standard deviation, on the reasoning that how
+darkly a book prints says nothing about which piece is on the square. True — but
+*how much contrast a crop has* says a great deal, and dividing it out threw that
+away. An empty square has almost no variance, so on a noisy page the division
+amplified sensor noise until it filled the range and the classifier saw a
+high-contrast blob. Measured on the book, empty crops had a standard deviation
+of 14.7 and occupied ones 24.9; standardising sent both to exactly 1.0. On one
+page of a poor scan, 382 errors were the same mistake — an empty square called a
+piece — and the whole scan scored below what answering "empty" everywhere would
+have got. Flooring the divisor took a poor scan from 48% of squares to 81% and a
+phone photo from 26% to 60%, with clean pages unchanged at 100%.
+
+
 
 **Hatched squares, found by the first real book.** Presses cannot print grey, so
 they print sparse black marks that average to grey — and a great many chess

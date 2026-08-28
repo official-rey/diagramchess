@@ -98,7 +98,9 @@ def build_demo_book(
         for slot in range(2):
             board = random_position(rng)
             rendered = render_diagram(board, style)
-            image = degrade(rendered.image, rng) if degrade_pages else rendered.image
+            # A fixture book stands for a publisher's clean PDF; anything that
+            # happens to it in a scanner is applied on top, separately.
+            image = degrade(rendered.image, rng, amount=0.45) if degrade_pages else rendered.image
             ok, buf = cv2.imencode(".png", image)
             if not ok:
                 raise RuntimeError("could not encode a diagram")

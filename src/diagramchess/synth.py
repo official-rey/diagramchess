@@ -69,13 +69,23 @@ def _random_endgame(rng: random.Random) -> str:
     return BoardMatrix(grid).placement()
 
 
-def degrade(image: np.ndarray, rng: random.Random) -> np.ndarray:
+def degrade(image: np.ndarray, rng: random.Random, amount: float = 1.0) -> np.ndarray:
     """Make a clean render look like it came off a page and through a scanner.
 
     Every step here corresponds to something that really happens to a diagram
     between the typesetter and the classifier: halftone screening, ink spread,
     rescaling to the PDF's resolution, sensor noise, and the slight rotation of
     a book held down on a flatbed.
+
+    The ranges were widened once a real book was on hand to measure against.
+    They had been set by guesswork and were far milder than a photocopy or a
+    phone photograph really is, so the classifier had never seen the conditions
+    it was failing on.
+
+    ``amount`` scales the whole lot.  Training wants the full range, because
+    that is the range books arrive in; generating a *fixture* book wants a
+    fraction of it, because a fixture stands for a publisher's clean PDF and
+    the scanning is applied on top of it separately.
     """
     out = image.astype(np.float32)
     noise = np.random.default_rng(rng.getrandbits(64))
@@ -85,8 +95,8 @@ def degrade(image: np.ndarray, rng: random.Random) -> np.ndarray:
         op = cv2.MORPH_ERODE if rng.random() < 0.5 else cv2.MORPH_DILATE
         out = cv2.morphologyEx(out.astype(np.uint8), op, kernel).astype(np.float32)
 
-    if rng.random() < 0.30:  # a page never sits perfectly straight on the glass
-        angle = rng.uniform(-0.8, 0.8)
+    if rng.random() < 0.35:  # a page never sits perfectly straight on the glass
+        angle = rng.uniform(-1.8, 1.8) * amount
         h, w = out.shape
         matrix = cv2.getRotationMatrix2D((w / 2, h / 2), angle, 1.0)
         out = cv2.warpAffine(out, matrix, (w, h), flags=cv2.INTER_LINEAR,
@@ -99,7 +109,7 @@ def degrade(image: np.ndarray, rng: random.Random) -> np.ndarray:
                            interpolation=cv2.INTER_AREA)
         out = cv2.resize(small, (w, h), interpolation=cv2.INTER_LINEAR)
 
-    blur = rng.uniform(0.0, 1.1)
+    blur = rng.uniform(0.0, 1.9) * amount
     if blur > 0.15:
         out = cv2.GaussianBlur(out, (0, 0), blur)
 
@@ -107,8 +117,8 @@ def degrade(image: np.ndarray, rng: random.Random) -> np.ndarray:
     bias = rng.uniform(-18, 14)
     out = out * gain + bias
 
-    if rng.random() < 0.75:
-        out += noise.normal(0, rng.uniform(1.5, 9.0), out.shape).astype(np.float32)
+    if rng.random() < 0.8:
+        out += noise.normal(0, rng.uniform(1.5, 15.0) * amount, out.shape).astype(np.float32)
 
     if rng.random() < 0.18:  # photocopier speckle
         mask = noise.random(out.shape) < rng.uniform(0.0005, 0.004)
@@ -116,8 +126,8 @@ def degrade(image: np.ndarray, rng: random.Random) -> np.ndarray:
 
     out = np.clip(out, 0, 255).astype(np.uint8)
 
-    if rng.random() < 0.30:  # JPEG, the usual way a scanned book is stored
-        quality = rng.randint(30, 85)
+    if rng.random() < 0.4:  # JPEG, the usual way a scanned book is stored
+        quality = int(round(90 - (90 - rng.randint(25, 90)) * amount))
         ok, buf = cv2.imencode(".jpg", out, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
         if ok:
             out = cv2.imdecode(buf, cv2.IMREAD_GRAYSCALE)

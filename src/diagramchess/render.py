@@ -203,7 +203,11 @@ def random_style(rng: random.Random, piece_set: PieceSet, cell_px: int | None = 
         grid_line = rng.randint(60, 150)
     return DiagramStyle(
         piece_set=piece_set,
-        cell_px=cell_px if cell_px is not None else rng.randint(20, 64),
+        # Down to twelve pixels a square.  A real book at 120 dpi prints about
+        # fourteen and at 100 dpi about twelve, and the classifier had never
+        # been shown a square that small -- which is most of why it fell apart
+        # on a coarse scan rather than merely getting worse.
+        cell_px=cell_px if cell_px is not None else rng.randint(12, 64),
         light=light,
         dark=dark,
         checkered=checkered,

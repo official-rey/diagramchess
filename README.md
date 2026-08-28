@@ -165,8 +165,10 @@ anything the tool drew itself. `tools/` has the harness.
 Two caveats worth stating. Merida is one of the styles the packaged model is
 trained on, so this is a favourable book — a title set in a font unlike anything
 in training will be harder, which is what the held-out numbers below are for.
-And getting here needed a fix that only a real book could have prompted; see
-*hatched squares* below.
+And getting here needed two fixes that only a real book could have prompted: one
+for hatched squares, below, and one for captions -- this book prints each game's
+players *above* its board, and reading only the band underneath had been
+attaching every diagram to its neighbour's header, silently and consistently.
 
 ### Finding the diagrams (generated books)
 

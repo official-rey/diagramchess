@@ -181,23 +181,26 @@ only exist as photocopies, and plenty of readers photograph a page rather than
 scan it. The same 222 diagrams, put through what actually happens to a page
 (`tools/eval_stress.py`):
 
-| condition | detection recall | squares | corrections per diagram |
+| condition | detection recall | squares | diagrams perfect |
 |---|---|---|---|
-| clean, 200 dpi | 100.0% | 100.00% | 0.00 |
-| 150 dpi | 99.1% | 99.45% | 0.35 |
-| 120 dpi | 99.5% | 99.51% | 0.31 |
-| 100 dpi | 82.9% | 97.37% | 1.68 |
-| photocopy — 150 dpi, soft, noisy, JPEG 70, 0.4° skew | 94.6% | 98.69% | 0.84 |
-| poor scan — 120 dpi, blurred, noisy, JPEG 45, 0.8° skew | 65.3% | 81% | — |
-| phone photo — 110 dpi, soft, noisy, JPEG 35, 1.5° skew | 69.8% | 60% | — |
+| clean, 200 dpi | 100.0% | 100.00% | 222/222 |
+| 150 dpi | 99.1% | 99.44% | 218/220 |
+| 120 dpi | 99.5% | 99.48% | 214/221 |
+| 100 dpi | 82.9% | 97.46% | 167/184 |
+| photocopy — 150 dpi, soft, noisy, JPEG 70, 0.4° skew | 94.6% | 99.11% | 206/210 |
+| poor scan — 120 dpi, blurred, noisy, JPEG 45, 0.8° skew | 65.3% | 88.04% | 7/145 |
+| phone photo — 110 dpi, soft, noisy, JPEG 35, 1.5° skew | 69.8% | 42.71% | 0/155 |
 
 **Ingest at 200 dpi if you can and 150 if you must.** Below about 120 dpi a
 diagram this size is under fifteen pixels a square and detection starts losing
-boards — not the classifier's fault, there is simply not enough board left.
+boards — not the classifier's fault, there is simply not enough board left. A
+photocopy at a decent resolution is fine; a phone snapshot of a page is not, and
+no amount of model is going to rescue it.
 
-The last two rows were 48% and 26% before the scanner-noise fix below, which is
-worse than answering "empty" for every square. They are the reason that fix
-exists.
+Those last two rows read 48% and 26% before the scanner-noise fix below — worse
+than answering "empty" for every square — and 82%/55% after it. Training on the
+resolutions and damage real books actually arrive in took the poor scan the rest
+of the way to 88%.
 
 ### Finding the diagrams (generated books)
 

@@ -23,7 +23,7 @@ SQUARE_SIZE = 48
 #: A classifier trained on synthetic diagrams ships with the package, so the
 #: tool reads its first book without a training run.  Retraining replaces it
 #: with one that has seen your own corrections, which is the point.
-BUNDLED_MODEL = Path(__file__).parent / "models" / "piece-net-v2.pt"
+BUNDLED_MODEL = Path(__file__).parent / "models" / "piece-net-v4.pt"
 
 
 def bundled_model() -> Path | None:

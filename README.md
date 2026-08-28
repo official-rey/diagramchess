@@ -11,6 +11,7 @@ its diagrams in one figurine font throughout, a handful of verified diagrams is
 usually enough to make the rest of that book read cleanly.
 
 ```
+dgc pieces --fetch            # ~40 figurine styles to train against (worth it, see below)
 dgc demo-book sample.pdf      # a generated chess book, if you want to try it first
 dgc ingest your-book.pdf      # find the diagrams and read them
 dgc review                    # check them; corrections are saved as training data
@@ -19,9 +20,10 @@ dgc train && dgc reread       # fold your corrections back in
 ```
 
 A classifier trained on synthetic diagrams ships with the package, so there is
-no training run to sit through before the first book. `dgc train` replaces it
-with one that has seen your corrections, which is where the accuracy on *your*
-books comes from.
+no training run to sit through before the first book. On a book set in a
+figurine font it has never seen it reads about 92% of squares — roughly five
+corrections a diagram — and the review loop takes that down to well under one.
+`dgc train` then replaces it with a model that has seen your corrections.
 
 ## Installing
 
@@ -199,10 +201,11 @@ rather than silent.
 | `dgc train` | train on synthetic diagrams plus everything you have verified |
 | `dgc reread` | re-read stored diagrams with the current model |
 | `dgc accuracy` | how often the model agrees with your corrections |
-| `dgc export --format fen\|csv\|pgn\|json` | the positions found so far |
+| `dgc export --format board\|fen\|csv\|pgn\|json` | the positions found so far |
 | `dgc status` | what is in the workspace |
 | `dgc models --activate N` | switch between trained models |
-| `dgc demo-book OUT.pdf` | generate a sample book with known contents |
+| `dgc pieces --fetch` | download figurine styles; `--shippable-only` filters by licence |
+| `dgc demo-book OUT.pdf` | generate a sample book; `--style` pins the figurine font |
 
 Everything lives in a workspace directory (`.diagramchess` by default, or
 `-w somewhere-else`): the SQLite database, the cached crops, and the model

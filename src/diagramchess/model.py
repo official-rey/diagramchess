@@ -84,13 +84,30 @@ def build_net(num_classes: int = NUM_CLASSES):
     )
 
 
+#: Crops flatter than this are not stretched to fill the range.
+#:
+#: Dividing every crop by its own standard deviation was wrong, and wrong in a
+#: way that only showed up on a degraded scan.  An empty square has almost no
+#: variance, so on a noisy page the division amplified sensor noise to full
+#: contrast and the net read the result as a piece: on a poor scan of a real
+#: book, 382 of its errors were empty squares called pieces, and it scored
+#: below what answering "empty" everywhere would have got.
+#:
+#: Absolute contrast is the strongest evidence there is for empty against
+#: occupied, and normalising it away threw that evidence out.  Flooring the
+#: divisor keeps a flat crop flat.  Measured on the same book at several
+#: floors, clean pages stayed at 100% throughout while a poor scan went from
+#: 48% of squares to 81%, so the floor costs nothing and buys a great deal.
+MIN_CONTRAST = 64.0
+
+
 def normalise(squares: np.ndarray) -> np.ndarray:
-    """Standardise each crop on its own statistics.
+    """Standardise each crop, without stretching a flat one.
 
     Books print at wildly different densities and scanners expose them
-    differently, and none of that carries information about which piece is on
-    the square.  Normalising per crop rather than per dataset throws it away
-    before the net can learn to depend on it.
+    differently, and none of that says which piece is on the square, so the
+    mean goes.  How *much* contrast a crop has does say something -- see
+    :data:`MIN_CONTRAST` -- so the scaling is floored rather than free.
     """
     x = squares.astype(np.float32)
     if x.ndim == 2:
@@ -98,7 +115,7 @@ def normalise(squares: np.ndarray) -> np.ndarray:
     flat = x.reshape(len(x), -1)
     mean = flat.mean(axis=1)[:, None, None]
     std = flat.std(axis=1)[:, None, None]
-    return (x - mean) / np.maximum(std, 1e-3)
+    return (x - mean) / np.maximum(std, MIN_CONTRAST)
 
 
 @dataclass

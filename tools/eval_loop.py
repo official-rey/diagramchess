@@ -16,6 +16,7 @@ import pymupdf
 from diagramchess.board import BoardMatrix
 from diagramchess.demo import build_demo_book
 from diagramchess.detect import _iou
+from diagramchess.pieces import piece_sets_in
 from diagramchess.pipeline import ingest, load_squares
 from diagramchess.predict import Predictor, bank_for_book
 from diagramchess.store import Workspace
@@ -43,10 +44,10 @@ def truth_for_diagrams(workspace, book_id, pdf, meta):
     return truth
 
 
-def run(model_path, seed=900, pages=14, style_seed=None):
+def run(model_path, seed=900, pages=14, style_seed=None, piece_set=None):
     tmp = Path(tempfile.mkdtemp())
     pdf = tmp / "book.pdf"
-    build_demo_book(pdf, pages=pages, seed=seed, style_seed=style_seed)
+    build_demo_book(pdf, pages=pages, seed=seed, style_seed=style_seed, piece_set=piece_set)
     meta = json.loads(pdf.with_suffix(".truth.json").read_text())
     workspace = Workspace(tmp / "ws")
     predictor = Predictor(model_path)
@@ -92,6 +93,12 @@ def run(model_path, seed=900, pages=14, style_seed=None):
 
 
 if __name__ == "__main__":
-    model = sys.argv[1] if len(sys.argv) > 1 else "models/piece-net-holdout.pt"
-    style = int(sys.argv[2]) if len(sys.argv) > 2 else None
-    run(model, style_seed=style)
+    model = sys.argv[1]
+    name = sys.argv[2] if len(sys.argv) > 2 else None
+    pieces = sys.argv[3] if len(sys.argv) > 3 else "/home/user/lichess-org/lila/public/piece"
+    chosen = None
+    if name:
+        chosen = next((s for s in piece_sets_in(pieces) if s.name == name), None)
+        if chosen is None:
+            raise SystemExit(f"no piece style named {name!r} under {pieces}")
+    run(model, seed=900, pages=16, style_seed=3, piece_set=chosen)

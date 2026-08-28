@@ -135,10 +135,15 @@ def _predictor_with(net, monkeypatch):
     return predictor
 
 
-def test_a_confident_model_is_not_overridden_by_exemplars(piece_set, monkeypatch):
-    """Measured on full review runs: letting the bank assert itself in
-    proportion to its coverage made readings worse, because it overrode a model
-    that was already right.  It only speaks where the model hesitates."""
+def test_a_well_covered_bank_overrides_a_confidently_wrong_model(piece_set, monkeypatch):
+    """The case the exemplar bank exists for.
+
+    On a book set in a figurine font the model has never seen, the model is not
+    merely wrong on several squares a diagram -- it is *confidently* wrong, at
+    better than 0.9 on squares it has misread.  An earlier version gated the
+    bank on the model's doubt, which silenced it exactly here; measured over
+    unseen fonts that gate left 12.94 errors a diagram against 6.92 without it.
+    """
     squares, board = _squares(POSITION, piece_set)
     bank = ExemplarBank()
     bank.add(squares, np.array([LABEL_TO_INDEX[c] for c in board.flat()]))
@@ -146,6 +151,20 @@ def test_a_confident_model_is_not_overridden_by_exemplars(piece_set, monkeypatch
     predictor = _predictor_with(_FakeNet("q", 0.999), monkeypatch)
     reading = predictor.read_squares(squares, bank)
     assert reading.source == "net+exemplars"
+    agree = sum(1 for a, b in zip(reading.labels, board.flat()) if a == b)
+    assert agree >= 55, f"{agree}/64 -- the bank was talked over by a wrong model"
+
+
+def test_a_narrow_bank_leaves_the_model_in_charge(piece_set, monkeypatch):
+    """A bank holding one class must not drag every square towards it."""
+    squares, board = _squares(POSITION, piece_set)
+    labels = np.array([LABEL_TO_INDEX[c] for c in board.flat()])
+    narrow = ExemplarBank()
+    keep = labels == LABEL_TO_INDEX["."]
+    narrow.add(squares[keep], labels[keep])
+
+    predictor = _predictor_with(_FakeNet("q", 0.90), monkeypatch)
+    reading = predictor.read_squares(squares, narrow)
     assert reading.labels == ["q"] * 64
 
 

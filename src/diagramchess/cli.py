@@ -80,10 +80,18 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--activate", type=int, help="make this model id the active one")
     p.set_defaults(func=cmd_models)
 
+    p = sub.add_parser("pieces", help="list the figurine styles available for training")
+    p.add_argument("--fetch", action="store_true",
+                   help="download the Lichess piece styles into the workspace")
+    p.add_argument("--shippable-only", action="store_true",
+                   help="list only styles whose licence allows redistributing a model trained on them")
+    p.set_defaults(func=cmd_pieces)
+
     p = sub.add_parser("demo-book", help="write a sample chess book to try the tool on")
     p.add_argument("output", type=Path)
     p.add_argument("--pages", type=int, default=8)
     p.add_argument("--seed", type=int, default=11)
+    p.add_argument("--style", help="pin the figurine style by name (see 'dgc pieces')")
     p.set_defaults(func=cmd_demo_book)
 
     args = parser.parse_args(argv)
@@ -198,13 +206,21 @@ def cmd_train(args) -> int:
     else:
         print("training on synthetic diagrams only (nothing verified yet)")
 
+    from .pieces import available_piece_sets
+
+    styles = available_piece_sets() + _extra_styles(workspace)
+    print(f"drawing training diagrams in {len(styles)} figurine style(s)")
+    if len(styles) <= 3:
+        print("  only the built-in styles are available; 'dgc pieces --fetch' adds\n"
+              "  several dozen more, which is the cheapest accuracy you can buy")
+
     # Name checkpoints by when they were trained, so a workspace keeps its
     # history even after a model is deleted or rolled back to.
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     output = args.output or (Path(workspace.root) / "models" / f"piece-net-{stamp}.pt")
     config = TrainConfig(
         epochs=args.epochs, steps_per_epoch=args.steps, batch_size=args.batch_size,
-        workers=args.workers, holdout_style=args.holdout_style,
+        workers=args.workers, holdout_style=args.holdout_style, piece_sets=styles,
     )
 
     def progress(row: dict) -> None:
@@ -355,10 +371,67 @@ def cmd_models(args) -> int:
     return 0
 
 
+def _styles_dir(workspace) -> Path:
+    return Path(workspace.root) / "pieces"
+
+
+def _extra_styles(workspace):
+    from .pieces import piece_sets_in
+
+    return piece_sets_in(_styles_dir(workspace))
+
+
+def cmd_pieces(args) -> int:
+    from .artwork import BOOK_FONTS, describe, fetch
+    from .pieces import available_piece_sets
+
+    workspace = _workspace(args)
+    directory = _styles_dir(workspace)
+
+    if args.fetch:
+        print(f"fetching piece styles into {directory} ...")
+        fetch(directory)
+
+    builtin = available_piece_sets()
+    extra = _extra_styles(workspace)
+    print(f"{len(builtin)} style(s) built in, {len(extra)} in {directory}\n")
+    print(f"{'style':<22}{'licence':<26}{'ships':<7}source")
+    for piece_set in builtin:
+        print(f"{piece_set.name:<22}{'part of this project':<26}{'yes':<7}built in")
+    for piece_set in extra:
+        info = describe(piece_set.name)
+        if args.shippable_only and not info.shippable:
+            continue
+        note = "held out" if piece_set.name in BOOK_FONTS else ""
+        print(f"{piece_set.name:<22}{info.licence:<26}"
+              f"{'yes' if info.shippable else 'no':<7}downloaded {note}")
+
+    if not extra:
+        print("\nrun 'dgc pieces --fetch' to download several dozen more.\n"
+              "More styles in training is the cheapest way to raise accuracy on a\n"
+              "book whose figurine font the model has never seen.")
+    else:
+        print(f"\n'ships' means the licence allows redistributing a model trained on it.\n"
+              f"Everything here can be used to read your own books either way.\n"
+              f"The classic book fonts ({', '.join(BOOK_FONTS)}) are kept out of the\n"
+              f"packaged model on purpose, which is what makes them an honest test.")
+    return 0
+
+
 def cmd_demo_book(args) -> int:
     from .demo import build_demo_book
 
-    truth = build_demo_book(args.output, pages=args.pages, seed=args.seed)
+    piece_set = None
+    if args.style:
+        from .pieces import available_piece_sets
+
+        choices = available_piece_sets() + _extra_styles(_workspace(args))
+        piece_set = next((s for s in choices if s.name == args.style), None)
+        if piece_set is None:
+            raise ValueError(f"no style named {args.style!r}; see 'dgc pieces'")
+
+    truth = build_demo_book(args.output, pages=args.pages, seed=args.seed,
+                            piece_set=piece_set)
     print(f"wrote {args.output} with {len(truth)} diagrams "
           f"(ground truth in {Path(args.output).with_suffix('.truth.json').name})")
     return 0

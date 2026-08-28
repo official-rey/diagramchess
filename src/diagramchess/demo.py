@@ -67,15 +67,18 @@ def build_demo_book(
     style_seed: int | None = None,
     degrade_pages: bool = True,
     crosstables: bool = True,
+    piece_set=None,
 ) -> list[DemoDiagram]:
     """Write a sample chess book to ``path`` and return its ground truth.
 
     One piece set and one diagram style are chosen for the whole book, because
     that is how books work -- and it is what makes per-book learning pay off.
+    Pass ``piece_set`` to pin the figurine style, which is how the cross-style
+    benchmark isolates one font at a time.
     """
     rng = random.Random(seed)
     style_rng = random.Random(seed if style_seed is None else style_seed)
-    piece_set = style_rng.choice(available_piece_sets())
+    piece_set = piece_set or style_rng.choice(available_piece_sets())
     style = random_style(style_rng, piece_set, cell_px=44)
     style.coordinates = style_rng.random() < 0.5
 

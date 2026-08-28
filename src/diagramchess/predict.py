@@ -154,19 +154,31 @@ class Predictor:
         if not have_bank:
             return self._reading(net, "net")
 
-        # How much the bank may say on a square is its authority times the
-        # net's doubt.  Authority is about coverage, not volume: the bank
-        # returns zero for a class it has never seen, so what makes it risky is
-        # the piece types missing from it, not how few crops it holds.
+        # How much the bank may say is set by its coverage, not by its volume:
+        # it returns zero for a class it has never seen, so what makes it risky
+        # is the piece types missing from it, not how few crops it holds of the
+        # ones it has.  One verified middlegame covers nearly the whole label
+        # set; one verified king-and-pawn ending covers four classes.
         #
-        # Multiplying by the net's doubt is what makes mixing safe.  Measured
-        # over full review runs on books in a figurine style the net had never
-        # seen, letting the bank assert itself in proportion to its coverage
-        # made readings *worse* -- it overrode a net that was already right.
-        # Confined to the squares the net is unsure of, it costs nothing and
-        # still settles the cases the net cannot.
-        authority = 0.8 * len(bank.classes) / NUM_CLASSES
-        weight = (authority * (1.0 - net.max(axis=1)))[:, None].astype(np.float32)
+        # An earlier version also multiplied this by the net's doubt, so the
+        # bank spoke only where the net hesitated.  That was fitted to a
+        # benchmark drawn in the styles the net was trained on, where the net
+        # was right about everything and the only measurable effect was the
+        # damage the bank did.  Measured instead on books set in figurine fonts
+        # the net has never seen -- the case this whole mechanism exists for --
+        # the net is not merely wrong on several squares a diagram, it is
+        # *confidently* wrong, so gating on doubt silences the bank exactly when
+        # it is needed:
+        #
+        #     mean errors per diagram, four unseen fonts, banks of 1 to 12 diagrams
+        #       net alone                        14.38
+        #       weighted by the net's doubt      12.94
+        #       weighted by coverage (this)       6.92
+        #
+        # The cost is real but small and lands where it matters least: on books
+        # in a style the net already knows, coverage weighting adds about 0.08
+        # errors per diagram, on diagrams that hardly need reviewing anyway.
+        weight = 0.8 * len(bank.classes) / NUM_CLASSES
         combined = (1.0 - weight) * net + weight * bank.probabilities(squares)
         return self._reading(combined, "net+exemplars")
 

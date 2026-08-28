@@ -126,32 +126,69 @@ review only what falls below — that is the point of the flag-threshold slider.
 Numbers below come from the tools in `tools/`, run against generated books that
 include crosstable pages as distractors.
 
+### Finding the diagrams
+
 | | |
 |---|---|
-| diagram detection | 97% recall at 100% precision |
+| detection on generated books, crosstable pages included | 97% recall at 100% precision |
 | lattice accuracy | within 2% of a cell on 99% of renders |
-| classifier, synthetic validation | 99.98% of squares |
-| a model trained on **one** piece style, reading a book set in another | 1280/1280 squares, 20/20 diagrams |
-| exemplars alone, no model, unseen position in a known style | 58–64 of 64 squares |
 | the same books re-scanned: no text layer, skewed, JPEG at quality 72 | 32/32 diagrams, no false positives |
-| the packaged model on a fresh generated book, nothing trained | 896/896 squares, 14/14 diagrams |
 
-**These numbers are saturated, and that is the most useful thing about them.**
-The tool draws its training diagrams from three piece sets, and a model trained
-on just one of them reads a book set in another perfectly — so the benchmark
-can no longer tell good from excellent, and it cannot show the review loop
-helping, because there is nothing left to fix. Three synthetic piece sets
-resemble each other far more than a real book's figurine font resembles any of
-them. **Expect your first real book to be harder than any of this.** The
-verification loop exists for that gap, and `dgc accuracy` is what measures it
-on your own pages rather than on ours.
+Detection is the settled part. It is not learned, it does not depend on the
+figurine style, and it survives a bad scan.
 
-The one place a measurement did change the design: the exemplar bank used to be
-weighted by how much of the label set it covered, and over full simulated review
-runs that made readings *worse* — it overrode a model that was already right.
-It now speaks only in proportion to the model's doubt on each square, which
-measured as costing nothing while keeping the mechanism that settles the squares
-the model cannot.
+### Reading the pieces
+
+This is the part that is hard, and the number that matters is accuracy on a
+book set in a figurine font the model has **never seen** — because that is what
+your book is. `alpha`, `leipzig`, `companion` and `chess7` are the classic
+printed-book fonts and are deliberately kept out of training, so they are an
+honest test rather than a rehearsal.
+
+| | |
+|---|---|
+| synthetic validation, styles it *was* trained on | 99.98% of squares |
+| **unseen book fonts, per square** | **92.2%** |
+| **unseen book fonts, whole diagrams read perfectly** | **20 of 57** |
+
+So on a book it has not seen before, expect roughly five corrections a diagram
+to start with. That is the gap the review loop exists to close, and it does:
+
+| book set in `companion`, verifying in the order the tool asks for | errors per diagram |
+|---|---|
+| before any verification | 12.6 |
+| after 2 verified | 4.0 |
+| after 8 verified | 2.4 |
+| after 11 verified | 0.55, with 7 of 11 diagrams perfect |
+
+`letter` — a style that abandons figurines for initials — goes from 24.0 errors
+a diagram to 4.5. Neither of these is the model getting better; it is the
+exemplar bank filling up with crops from your own book.
+
+### Two measurements that changed the design
+
+**The exemplar bank's weighting was fitted to the wrong benchmark.** It used to
+speak only where the model was unsure. That was tuned against books drawn in
+the styles the model was trained on, where the model was right about everything
+and the only measurable effect was the harm the bank could do. On unseen fonts
+the model is not merely wrong on several squares a diagram — it is *confidently*
+wrong, so doubt-gating silenced the bank exactly where it was needed:
+
+| weighting | errors per diagram, four unseen fonts |
+|---|---|
+| model alone | 14.38 |
+| by the model's doubt | 12.94 |
+| by the bank's label coverage | **6.92** |
+
+**A renderer bug was masquerading as a model failure.** Several figurine sets,
+merida among them, paint the white pieces' bodies with an SVG gradient, and
+PyMuPDF silently drops gradient fills. Every white piece came through as a bare
+dark outline, so the classifier was trained and tested on artwork where the two
+colours were nearly the same — and every single error it made on merida was a
+colour flip, with the piece type always right. Rendering through Cairo instead
+took merida from 87% to 100%. `dgc pieces` now refuses any style whose white and
+black artwork do not come out distinguishable, so the next such failure is loud
+rather than silent.
 
 ## Commands
 
@@ -218,12 +255,26 @@ keystroke to change in review.
 
 ## Piece artwork
 
-Synthetic training diagrams are drawn from the vector set that ships with
-python-chess and from the chess glyphs in DejaVu Sans and FreeSerif. If your
-books use a figurine style unlike any of those, drop PNG files named `wK.png`,
-`bQ.png` and so on into a directory per style and point
-`available_piece_sets(extra_dir=...)` at it — more styles in training is the
-cheapest way to raise cold-start accuracy.
+Three styles ship with the tool: the vector set from python-chess, and the chess
+glyphs in DejaVu Sans and FreeSerif. Three is not many, and **more styles in
+training is the cheapest accuracy you can buy** — so:
+
+```
+dgc pieces --fetch     # ~40 more styles from Lichess, a few megabytes
+dgc pieces             # what you have, and what each one's licence allows
+dgc train              # picks them up automatically
+```
+
+The licences differ per style — GPL, MIT, Apache, CC0 and CC BY are fine to
+redistribute a trained model under; several are non-commercial and one forbids
+derivatives — so nothing is downloaded unless you ask and nothing is vendored
+into this repository. `dgc pieces` prints the licence next to each style and
+marks which ones a shipped model may be trained on.
+
+You can also add your own: a directory per style, twelve files named `wK`,
+`bQ` and so on, as SVG or PNG, under `.diagramchess/pieces/`. A style is
+rejected if it is incomplete, or if its white and black artwork do not render
+distinguishably — see the renderer bug above for why that check is there.
 
 ## Licence
 

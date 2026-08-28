@@ -65,9 +65,12 @@ does two things worth naming:
   lattice that keeps going past where a board would end.
 
 **Reading the position.** Each board is cut into 64 padded square crops and
-classified 13 ways (12 pieces and empty) by a small convolutional net. Crops
-are standardised individually, so how darkly a book prints carries no
-information the net can lean on.
+classified 13 ways (12 pieces and empty) by a small convolutional net. Each
+crop has its mean subtracted, so how darkly a book prints carries no information
+the net can lean on — but its contrast is only scaled down to a floor, never
+stretched up to it, because how much contrast a crop has is the strongest
+evidence there is for empty against occupied. Dividing that out was a real bug;
+see *scanner noise* below.
 
 **Learning your book.** Alongside the net, an **exemplar bank** holds the crops
 you have verified in the book you are reading, matched by nearest neighbour.

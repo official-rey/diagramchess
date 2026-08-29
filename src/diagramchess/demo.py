@@ -134,5 +134,6 @@ def build_demo_book(
         "style": {k: v for k, v in vars(style).items() if k != "piece_set"},
         "diagrams": [vars(d) for d in truth],
     }
-    path.with_suffix(".truth.json").write_text(json.dumps(meta, indent=2, default=str))
+    path.with_suffix(".truth.json").write_text(json.dumps(meta, indent=2, default=str),
+                                               encoding="utf-8")
     return truth

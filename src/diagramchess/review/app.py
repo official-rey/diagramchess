@@ -11,8 +11,10 @@ you are checking exactly what the model saw.
 from __future__ import annotations
 
 import base64
+import hashlib
 import io
 import json
+import re
 from pathlib import Path
 
 import cv2
@@ -59,15 +61,25 @@ def create_app(workspace: Workspace, predictor: Predictor | None = None) -> Fast
                 return JSONResponse({"detail": "cross-origin write refused"}, status_code=403)
         return await call_next(request)
 
+    @app.middleware("http")
+    async def never_serve_a_stale_asset(request: Request, call_next):
+        response = await call_next(request)
+        if request.url.path.startswith("/static/"):
+            # The URLs carry a stamp, so this only costs a 304 on a reload.
+            response.headers["cache-control"] = "no-cache"
+        return response
+
     # -- pages ----------------------------------------------------------
 
+    stamp = asset_stamp()
+
     @app.get("/", response_class=HTMLResponse)
-    def index() -> str:
-        return (STATIC / "index.html").read_text()
+    def index() -> Response:
+        return _page("index.html", stamp)
 
     @app.get("/review", response_class=HTMLResponse)
-    def review_page() -> str:
-        return (STATIC / "review.html").read_text()
+    def review_page() -> Response:
+        return _page("review.html", stamp)
 
     # -- data -----------------------------------------------------------
 
@@ -455,6 +467,35 @@ def create_app(workspace: Workspace, predictor: Predictor | None = None) -> Fast
         })
 
     return app
+
+
+def asset_stamp() -> str:
+    """A short digest of the static files, to hang on their URLs.
+
+    Nothing else versions them, so a browser that has met an older copy of this
+    app on the same port keeps serving the CSS and JS it cached then against
+    HTML from the new one.  That does not look like a stale cache; it looks
+    like a broken app -- buttons whose handlers the old script never had, and
+    styles that half apply.  A URL that changes with the files cannot be
+    answered from a cache keyed on the old one.
+    """
+    digest = hashlib.sha1()
+    for path in sorted(STATIC.rglob("*")):
+        if path.is_file():
+            info = path.stat()
+            digest.update(f"{path.name}:{info.st_size}:{info.st_mtime_ns};".encode())
+    return digest.hexdigest()[:10]
+
+
+def _page(name: str, stamp: str) -> HTMLResponse:
+    """Serve a page, stamped, and read as UTF-8 whatever the machine's locale.
+
+    ``read_text()`` decodes with the locale encoding, which on Windows is
+    cp1252: every ellipsis and figurine in these files came out as mojibake.
+    """
+    html = (STATIC / name).read_text(encoding="utf-8")
+    html = re.sub(r'(href|src)="(/static/[^"?]+)"', rf'\1="\2?v={stamp}"', html)
+    return HTMLResponse(html, headers={"cache-control": "no-store"})
 
 
 def _parse_pages(spec: str | None) -> list[int] | None:

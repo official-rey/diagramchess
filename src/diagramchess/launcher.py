@@ -125,13 +125,15 @@ def _install_linux(workspace: Path, port: int) -> Written:
     target = directory / f"{APP_NAME}.desktop"
     exec_line = " ".join(shlex.quote(part) for part in command(workspace, port))
     target.write_text(
+        # The spec says UTF-8, and a home directory can have any name in it.
         "[Desktop Entry]\n"
         "Type=Application\n"
         f"Name={APP_NAME}\n"
         "Comment=Read chess diagrams out of PDF books\n"
         f"Exec={exec_line}\n"
         "Terminal=false\n"
-        "Categories=Education;Game;\n"
+        "Categories=Education;Game;\n",
+        encoding="utf-8",
     )
     _executable(target)
     return Written(target, "It should appear in your applications menu; some desktops\n"
@@ -150,7 +152,7 @@ def _install_macos(workspace: Path, port: int) -> Written:
 
     script = macos / APP_NAME
     quoted = " ".join(shlex.quote(part) for part in command(workspace, port))
-    script.write_text(f"#!/bin/sh\nexec {quoted}\n")
+    script.write_text(f"#!/bin/sh\nexec {quoted}\n", encoding="utf-8")
     _executable(script)
 
     (bundle / "Contents" / "Info.plist").write_bytes(plistlib.dumps({

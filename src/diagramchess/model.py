@@ -154,7 +154,7 @@ def save_checkpoint(checkpoint: Checkpoint, path: str | Path) -> Path:
         "metrics": checkpoint.metrics,
         "trained_at": checkpoint.trained_at,
         "notes": checkpoint.notes,
-    }, indent=2))
+    }, indent=2), encoding="utf-8")
     return path
 
 

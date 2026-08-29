@@ -15,34 +15,39 @@
   <span class="muted mono" style="font-size:12px" id="model"></span>
 </header>
 
-<main>
+<main class="home">
   <!-- Everything that used to be a terminal command lives on this page. -->
-  <section class="card open-book" id="drop">
-    <div class="open-inner">
-      <div class="open-icon">♞</div>
-      <div>
-        <h2 style="margin:0 0 4px;font-size:16px;text-transform:none;letter-spacing:0;color:var(--ink)">
-          Open a chess book
-        </h2>
-        <p class="muted" style="margin:0 0 12px;font-size:13px">
-          Drop a PDF here, or choose one. It stays on this computer.
-        </p>
-        <div class="row">
-          <button class="primary" id="choose">Choose a PDF…</button>
-          <button id="demo" title="a generated book, to try the tool out">Try a sample book</button>
-          <button id="advanced-toggle" class="quiet">Options</button>
-        </div>
-        <div class="row advanced" id="advanced" hidden>
-          <label class="muted">pages
-            <input id="pages" type="text" placeholder="all" size="7"
-                   title="e.g. 40-60, to try part of a long book first"></label>
-          <label class="muted">detail
-            <select id="dpi">
-              <option value="150">faster</option>
-              <option value="200" selected>normal</option>
-              <option value="300">finest (small or faint diagrams)</option>
-            </select></label>
-        </div>
+  <section class="open-book" id="drop">
+    <!-- Drawn rather than set as a character: a font that lacks the figurine
+         glyphs, or a page decoded in the wrong encoding, both make a mess of
+         one, and this is the first thing anybody sees. -->
+    <svg class="open-icon" viewBox="0 0 45 45" aria-hidden="true">
+      <g fill="currentColor" fill-rule="evenodd" stroke="currentColor"
+         stroke-width="1.5" stroke-linejoin="round">
+        <path d="M22 10c10.5 1 16.5 8 16 29H15c0-9 10-6.5 8-21"/>
+        <path d="M24 18c.38 2.91-5.55 7.37-8 9-3 2-2.82 4.34-5 4-1.04-.94 1.41-3.04 0-3-1 0 .19 1.23-1 2-1 0-4.00 1-4-4 0-2 6-12 6-12s1.89-1.9 2-3.5c-.73-.99-.5-2-.5-3 1-1 3 2.5 3 2.5h2s.78-1.99 2.5-3c1 0 1 3 1 3"/>
+        <path d="M9.5 25.5a.5.5 0 1 1-1 0 .5.5 0 1 1 1 0zM15 15.5a.5 1.5 0 1 1-1 0 .5 1.5 0 1 1 1 0z"
+              fill="var(--panel)" stroke="var(--panel)"/>
+      </g>
+    </svg>
+    <div class="open-words">
+      <h2>Open a chess book</h2>
+      <p class="muted">Drop a PDF here, or choose one. It stays on this computer.</p>
+      <div class="row">
+        <button class="primary big" id="choose">Choose a PDF…</button>
+        <button class="big" id="demo" title="a generated book, to try the tool out">Try a sample book</button>
+        <button id="advanced-toggle" class="quiet">Options</button>
+      </div>
+      <div class="row advanced" id="advanced" hidden>
+        <label class="muted">pages
+          <input id="pages" type="text" placeholder="all" size="7"
+                 title="e.g. 40-60, to try part of a long book first"></label>
+        <label class="muted">detail
+          <select id="dpi">
+            <option value="150">faster</option>
+            <option value="200" selected>normal</option>
+            <option value="300">finest (small or faint diagrams)</option>
+          </select></label>
       </div>
     </div>
     <input type="file" id="file" accept="application/pdf,.pdf" hidden>
@@ -56,17 +61,42 @@
       <span class="muted mono" style="font-size:12px" id="job-count"></span>
     </div>
     <div class="bar" style="margin-top:10px"><i id="job-bar" style="width:0%"></i></div>
-    <div class="row" style="margin-top:10px" id="job-actions"></div>
+    <div class="row" style="margin-top:12px" id="job-actions"></div>
   </section>
 
-  <div class="grid-2">
-    <section class="card">
-      <h2>Books</h2>
-      <table id="books"><tbody></tbody></table>
-      <p class="muted" style="font-size:13px;margin-bottom:0" id="no-books">
-        Nothing opened yet. Drop a PDF above to start.
-      </p>
-    </section>
+  <!-- First run: three sentences instead of two empty tables. -->
+  <section class="steps" id="steps">
+    <div><b>1 · Open</b><span class="muted">It finds every diagram in the book and
+      reads the position off each one.</span></div>
+    <div><b>2 · Check</b><span class="muted">Least confident first, so if the first
+      few are right the rest very likely are.</span></div>
+    <div><b>3 · Play</b><span class="muted">Every diagram gets a Lichess analysis
+      board, or export the lot as PGN.</span></div>
+  </section>
+
+  <div class="grid-2" id="library" hidden>
+    <div>
+      <section class="card">
+        <h2>Books</h2>
+        <table id="books"><tbody></tbody></table>
+      </section>
+      <section class="card teach" id="teach" hidden>
+        <div>
+          <h2>Teach it your book</h2>
+          <p class="muted">
+            Once you have checked a few dozen diagrams, training folds your corrections
+            into the model and re-reads the rest of the book with it. It takes a
+            while; you can leave this window open.
+          </p>
+          <div class="muted" style="font-size:12px" id="train-note"></div>
+        </div>
+        <div class="row">
+          <button id="fetch">Download figurine styles</button>
+          <button id="train">Train on my corrections</button>
+          <button id="reread">Read every diagram again</button>
+        </div>
+      </section>
+    </div>
 
     <section class="card">
       <div class="row" style="margin-bottom:12px">
@@ -85,28 +115,16 @@
           <option value="recent">recently touched</option>
         </select>
       </div>
-      <table id="queue">
-        <thead><tr><th>#</th><th>page</th><th>caption</th><th>confidence</th><th>detection</th></tr></thead>
-        <tbody></tbody>
-      </table>
-      <p class="muted" id="empty" style="display:none">Nothing here yet.</p>
+      <div class="scroller">
+        <table id="queue">
+          <thead><tr><th>#</th><th>page</th><th>caption</th><th>confidence</th><th>detection</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="muted" id="empty" style="display:none;margin-bottom:0">Nothing here yet.</p>
     </section>
   </div>
 
-  <section class="card" style="margin-top:18px">
-    <h2>Teach it your book</h2>
-    <p class="muted" style="font-size:13px;margin:0 0 12px">
-      After you have checked a few dozen diagrams, training folds your corrections
-      into the model and re-reads the rest of the book with it. It takes a while;
-      you can leave this window open.
-    </p>
-    <div class="row">
-      <button id="train">Train on my corrections</button>
-      <button id="reread">Read every diagram again</button>
-      <button id="fetch">Download figurine styles</button>
-      <span class="muted" style="font-size:12px" id="train-note"></span>
-    </div>
-  </section>
 </main>
 <div class="toast" id="toast"></div>
 <script src="/static/index.js"></script>

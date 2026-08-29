@@ -145,20 +145,26 @@ async function loadStats() {
     ? `${s.labelled_squares} labelled squares to train on`
     : 'nothing corrected yet — training would learn only from generated diagrams';
 
+  // Nothing to say about a library that is empty: on a first run the page is
+  // the drop zone and three sentences, not two headed tables with no rows.
+  const any = data.books.length > 0;
+  $('#library').hidden = !any;
+  $('#teach').hidden = !any;
+  $('#steps').hidden = any;
+
   const body = $('#books tbody');
   body.innerHTML = '';
-  $('#no-books').hidden = data.books.length > 0;
   for (const book of data.books) {
     const done = book.diagram_count ? book.verified_count / book.diagram_count : 0;
     const tr = document.createElement('tr');
     tr.dataset.bookId = book.id;
     tr.innerHTML = `
       <td class="clickable">
-        <div>${escapeHtml(book.title)}</div>
-        <div class="muted" style="font-size:12px">${book.pages} pages · ${book.diagram_count} diagrams</div>
+        <div class="title" title="${escapeHtml(book.title)}">${escapeHtml(book.title)}</div>
+        <div class="muted" style="font-size:12px">${book.pages} pages · ${book.diagram_count} diagrams
+          · ${book.verified_count} checked</div>
         <div class="bar" style="margin-top:6px"><i style="width:${(done * 100).toFixed(1)}%"></i></div>
       </td>
-      <td class="muted" style="width:1%;white-space:nowrap">${book.verified_count}/${book.diagram_count}</td>
       <td style="width:1%;white-space:nowrap">
         <button class="primary review-book">Review</button>
         <button class="quiet forget-book" title="remove this book and its diagrams">✕</button>

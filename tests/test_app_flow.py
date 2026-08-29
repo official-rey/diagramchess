@@ -217,6 +217,80 @@ def test_reading_is_open_to_anyone_who_can_reach_it(api):
     assert client.get("/api/stats", headers={"origin": "http://evil.example"}).status_code == 200
 
 
+# -- what the browser is actually given ----------------------------------
+
+def test_asset_urls_carry_a_stamp_that_changes_with_the_files(api, tmp_path):
+    """A browser that met an older copy of this app on the same port keeps
+    serving the CSS and JS it cached then.  That does not look like a stale
+    cache -- it looks like a broken app: new HTML with buttons the old script
+    has no handlers for.  A stamped URL cannot be answered from that cache.
+    """
+    import re
+
+    from diagramchess.review.app import STATIC, asset_stamp
+
+    client, _ = api
+    html = client.get("/").text
+    stamps = set(re.findall(r'/static/[\w.]+\?v=(\w+)', html))
+    assert len(stamps) == 1, f"assets are not all stamped alike: {stamps}"
+    assert re.fullmatch(r"[0-9a-f]{10}", stamps.pop())
+
+    before = asset_stamp()
+    touched = STATIC / "style.css"
+    original = touched.read_bytes()
+    try:
+        touched.write_bytes(original + b"\n/* nudge */\n")
+        assert asset_stamp() != before, "editing an asset did not change the stamp"
+    finally:
+        touched.write_bytes(original)
+
+
+def test_the_page_is_never_cached_and_the_assets_are_revalidated(api):
+    client, _ = api
+    assert client.get("/").headers["cache-control"] == "no-store"
+    assert client.get("/static/index.js").headers["cache-control"] == "no-cache"
+
+
+def test_pages_are_read_as_utf8_whatever_the_machine_is_set_to(tmp_path):
+    """read_text() decodes with the locale encoding.  On Windows that is
+    cp1252, and every ellipsis and figurine in these files came back mangled.
+
+    Reproduced here by running under a C locale, where the same mistake is
+    fatal rather than merely wrong.
+    """
+    import os
+    import subprocess
+    import sys
+
+    script = tmp_path / "serve.py"
+    script.write_text(
+        "from diagramchess.review.app import _page\n"
+        "html = _page('index.html', 'v1').body.decode('utf-8')\n"
+        "assert '\\u2026' in html, 'the ellipsis did not survive'\n"
+        "assert '\\u00e2' not in html, 'mojibake in the served page'\n"
+        "print('ok')\n",
+        encoding="utf-8",
+    )
+    ascii_only = {
+        "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
+        "LC_ALL": "C", "LANG": "C",
+        "PYTHONCOERCECLOCALE": "0", "PYTHONUTF8": "0",
+        "PYTHONPATH": os.pathsep.join(sys.path),
+    }
+    done = subprocess.run([sys.executable, str(script)], env=ascii_only,
+                          capture_output=True, text=True)
+    assert done.returncode == 0, done.stderr[-800:]
+    assert "ok" in done.stdout
+
+
+def test_every_static_file_is_valid_utf8():
+    from diagramchess.review.app import STATIC
+
+    for path in sorted(STATIC.rglob("*")):
+        if path.is_file():
+            path.read_text(encoding="utf-8")      # raises if it is not
+
+
 # -- the launcher --------------------------------------------------------
 
 def test_the_launcher_writes_something_that_can_be_taken_back(tmp_path, monkeypatch):

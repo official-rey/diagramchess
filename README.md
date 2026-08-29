@@ -27,7 +27,9 @@ seen your corrections.
 
 ## Installing
 
-Python 3.10 or newer.
+Python 3.10 or newer. If a terminal is unfamiliar territory,
+[GETTING-STARTED.md](GETTING-STARTED.md) walks through the same thing from
+scratch, one step at a time.
 
 ```bash
 git clone https://github.com/official-rey/diagramchess

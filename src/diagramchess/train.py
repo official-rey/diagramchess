@@ -21,7 +21,15 @@ import numpy as np
 from .dataset import VerifiedSquares, fixed_set, make_batches
 from .labels import LABELS, NUM_CLASSES
 from .model import SQUARE_SIZE, Checkpoint, build_net, normalise, save_checkpoint
-from .pieces import PieceSet, available_piece_sets
+from .pieces import PieceSet, available_piece_sets, piece_sets_in
+
+
+def training_styles(workspace) -> list[PieceSet]:
+    """Everything a workspace can draw training diagrams in: the styles built
+    into the package, plus any downloaded into it by ``dgc pieces --fetch`` or
+    its button in the web interface.  Shared so the command line and the server
+    train on the same material."""
+    return available_piece_sets() + piece_sets_in(Path(workspace.root) / "pieces")
 
 
 @dataclass

@@ -52,6 +52,11 @@
 }
 
 * { box-sizing: border-box; }
+/* The UA rule for [hidden] is display:none at user-agent origin, so any author
+   rule setting display -- .row{display:flex}, button{display:inline-block} --
+   beats it and the element stays on screen.  Everything below toggles
+   visibility with .hidden, so this has to win. */
+[hidden] { display: none !important; }
 html, body { height: 100%; }
 body {
   margin: 0; background: var(--bg); color: var(--ink);
@@ -240,7 +245,34 @@ tr.clickable:hover { background: var(--panel-2); cursor: pointer; }
 select { font: inherit; font-size: 13px; padding: 4px 6px; border-radius: 4px;
          border: 1px solid var(--line); background: var(--panel-2); color: var(--ink); }
 .bar { height: 5px; background: var(--line); border-radius: 99px; overflow: hidden; }
-.bar > i { display: block; height: 100%; background: var(--accent); }
+.bar > i { display: block; height: 100%; background: var(--accent); transition: width .25s; }
+/* Work with no page count to report -- rendering a book, downloading styles --
+   still has to look like it is happening. */
+.bar > i.indeterminate { width: 35% !important; animation: sweep 1.4s ease-in-out infinite; }
+@keyframes sweep { 0% { margin-left: -35%; } 100% { margin-left: 100%; } }
+
+button.quiet, .button.quiet { background: transparent; border-color: transparent; color: var(--muted); }
+button.quiet:hover, .button.quiet:hover { color: var(--ink); border-color: var(--line); }
+
+/* ---- opening a book --------------------------------------------------- */
+
+.open-book { border-style: dashed; border-width: 2px; padding: 22px; }
+.open-book.over { border-color: var(--accent); background: var(--panel-2); }
+.open-inner { display: flex; gap: 18px; align-items: center; }
+.open-icon { font-size: 44px; line-height: 1; color: var(--muted); }
+.advanced { margin-top: 10px; font-size: 13px; gap: 16px; }
+.advanced label { display: inline-flex; gap: 6px; align-items: center; }
+.advanced input { font: inherit; font-size: 13px; padding: 4px 6px; border-radius: 4px;
+                  border: 1px solid var(--line); background: var(--panel-2); color: var(--ink); }
+
+.job.failed { border-color: var(--bad); }
+.job.failed #job-note { color: var(--bad); }
+
+#books td { vertical-align: middle; }
+#books td:first-child { width: 100%; }     /* the buttons take what they need */
+#books .clickable { cursor: pointer; }
+#books tr.selected { background: var(--panel-2); }
+#books tr.selected .bar > i { background: var(--accent-hover); }
 
 /* A narrow window gets the board first and the panels stacked under it,
    rather than three columns none of which are usable. */

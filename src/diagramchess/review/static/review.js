@@ -376,11 +376,20 @@ window.addEventListener('beforeunload', (event) => {
 
 buildBoard();
 buildPalette();
-const id = new URLSearchParams(location.search).get('id');
+
+// ?id= opens one diagram; ?book= starts at the least confident diagram in a
+// book, which is how the home page hands over after reading one.
+const params = new URLSearchParams(location.search);
+const id = params.get('id');
+const book = params.get('book');
 if (id) {
   load(Number(id)).catch((error) => toast(error.message, 6000));
 } else {
-  json('/api/queue?status=pending&order=uncertain&limit=1')
-    .then((data) => data.diagrams.length ? load(data.diagrams[0].id) : toast('Nothing to review.'))
+  const query = new URLSearchParams({ status: 'pending', order: 'uncertain', limit: '1' });
+  if (book) query.set('book_id', book);
+  json('/api/queue?' + query)
+    .then((data) => data.diagrams.length
+      ? load(data.diagrams[0].id)
+      : toast('Nothing left to review here.', 4000))
     .catch((error) => toast(error.message, 6000));
 }

@@ -11,12 +11,24 @@ its diagrams in one figurine font throughout, a handful of verified diagrams is
 usually enough to make the rest of that book read cleanly.
 
 ```
+dgc app                       # opens a window: drop a PDF in, and review what it read
+```
+
+Opening a book, watching it being read, checking the diagrams, training on your
+corrections and re-reading with the result all happen in that one window.
+`dgc install-launcher` puts a shortcut in your applications menu, after which
+there is no terminal at all.
+
+The same steps are separate commands if you would rather script them:
+
+```
 dgc pieces --fetch            # ~40 figurine styles to train against (worth it, see below)
 dgc demo-book sample.pdf      # a generated chess book, if you want to try it first
 dgc ingest your-book.pdf      # find the diagrams and read them
 dgc review                    # check them; corrections are saved as training data
 dgc accuracy                  # is it good enough to stop checking every one?
 dgc train && dgc reread       # fold your corrections back in
+dgc export --format pgn       # take the positions elsewhere
 ```
 
 A classifier ships with the package, so there is no training run to sit through
@@ -80,15 +92,13 @@ works with no PyTorch at all.
 
 ```bash
 cd wherever/you/keep/books
-dgc ingest my-chess-book.pdf
+dgc app
 ```
 
-That finds every diagram and reads each one. A few hundred pages takes a couple
-of minutes. Then:
-
-```bash
-dgc review                           # opens on http://localhost:8765
-```
+Drop the PDF on the window that opens. It finds every diagram, reads each one —
+a few hundred pages takes a couple of minutes, with a progress bar — and hands
+you the review screen when it is done. The same thing from the command line is
+`dgc ingest my-chess-book.pdf` followed by `dgc review`.
 
 The queue is ordered by how unsure the model is, so the diagrams most likely to
 be wrong come first. Check a few. If they are all correct, you can stop —
@@ -111,14 +121,19 @@ A few things worth knowing:
   too small to find reliably. Use `--dpi 300` for a book with very small
   diagrams, at the cost of speed.
 - **`--pages 40-90`** limits ingest to a range, which is worth doing on a first
-  run to see how a book goes before committing to all of it.
+  run to see how a book goes before committing to all of it. The window has the
+  same thing under *Options*.
+- **A book opened through the window is copied into the workspace**, so it can
+  redraw pages later; one opened with `dgc ingest` is read where it lies, and
+  removing it from the book list never deletes a file you chose yourself.
 - **Re-ingesting is safe.** Diagrams are recognised by where they sit on the
   page, so a second pass keeps everything you verified.
 
 ### If it gets things wrong
 
 Check `dgc accuracy` first — it compares the model against your own corrections
-and tells you what kind of problem you have. Then:
+and tells you what kind of problem you have. Then, from the buttons at the
+bottom of the window, or equivalently:
 
 ```bash
 dgc pieces --fetch                   # ~40 more figurine styles, a few megabytes
@@ -178,11 +193,39 @@ it does not know, and that is exactly when the bank should win. Below two
 verified diagrams the bank is ignored entirely. The numbers behind all of that
 are under *Four measurements that changed the design*.
 
+## The window
+
+`dgc app` is the whole tool without a terminal: it starts the server, waits for
+it to answer, and only then opens a browser on it — a window that appears
+before the server is up shows a connection error and asks the reader to
+reload, which is the sort of thing this command exists to prevent. If the port
+is taken it takes the next free one rather than failing on someone's desktop.
+
+Opening a book is a PDF posted as a raw request body: no form parser to add as
+a dependency, and the browser streams it instead of holding a second copy in
+memory. Reading it, training, and re-reading all run as jobs on a single
+background worker, one at a time — they are CPU-bound and share a SQLite file,
+so a second one running concurrently would only make the first slower. The page
+polls the job and, when a book has been read, goes straight to the review
+screen for it.
+
+`dgc install-launcher` writes a desktop entry, a small `.app` bundle, or a
+`.bat` on the Desktop, depending on the platform, with the interpreter path,
+the workspace and the port baked in — a shortcut runs with no shell, no PATH
+and no working directory, so nothing may be left to be looked up.
+`--remove` takes it back.
+
+Because the server can now import files and start training, and because
+anything in the browser can reach localhost, a request that changes something
+must carry this app's own origin. Browsers attach `Origin` to every cross-site
+write, so the check costs nothing and blocks the obvious mischief; tools that
+are not browsers send none and are left alone.
+
 ## The review screen
 
-`dgc review` serves it on `localhost:8765`. The queue is ordered by how unsure
-the model is, so the diagrams that teach it most come first. Within a diagram,
-the cursor starts on the least confident square.
+`dgc app` opens it; `dgc review` serves it without opening a window. The queue
+is ordered by how unsure the model is, so the diagrams that teach it most come
+first. Within a diagram, the cursor starts on the least confident square.
 
 | key | |
 |---|---|

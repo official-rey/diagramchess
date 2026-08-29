@@ -4,44 +4,86 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>diagramchess</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%225%22%20fill%3D%22%232f6f4e%22%2F%3E%3Ctext%20x%3D%2216%22%20y%3D%2224%22%20font-size%3D%2222%22%20text-anchor%3D%22middle%22%20fill%3D%22%23fff%22%3E%E2%99%9E%3C%2Ftext%3E%3C%2Fsvg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%225%22%20fill%3D%22%23629924%22%2F%3E%3Ctext%20x%3D%2216%22%20y%3D%2224%22%20font-size%3D%2222%22%20text-anchor%3D%22middle%22%20fill%3D%22%23fff%22%3E%E2%99%9E%3C%2Ftext%3E%3C%2Fsvg%3E">
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 <header>
-  <h1>diagramchess</h1>
+  <h1><a href="/">diagramchess</a></h1>
   <span class="muted" id="summary">loading…</span>
   <span class="spacer"></span>
-  <span class="muted mono" id="model"></span>
+  <span class="muted mono" style="font-size:12px" id="model"></span>
 </header>
+
 <main>
+  <!-- Everything that used to be a terminal command lives on this page. -->
+  <section class="card open-book" id="drop">
+    <div class="open-inner">
+      <div class="open-icon">♞</div>
+      <div>
+        <h2 style="margin:0 0 4px;font-size:16px;text-transform:none;letter-spacing:0;color:var(--ink)">
+          Open a chess book
+        </h2>
+        <p class="muted" style="margin:0 0 12px;font-size:13px">
+          Drop a PDF here, or choose one. It stays on this computer.
+        </p>
+        <div class="row">
+          <button class="primary" id="choose">Choose a PDF…</button>
+          <button id="demo" title="a generated book, to try the tool out">Try a sample book</button>
+          <button id="advanced-toggle" class="quiet">Options</button>
+        </div>
+        <div class="row advanced" id="advanced" hidden>
+          <label class="muted">pages
+            <input id="pages" type="text" placeholder="all" size="7"
+                   title="e.g. 40-60, to try part of a long book first"></label>
+          <label class="muted">detail
+            <select id="dpi">
+              <option value="150">faster</option>
+              <option value="200" selected>normal</option>
+              <option value="300">finest (small or faint diagrams)</option>
+            </select></label>
+        </div>
+      </div>
+    </div>
+    <input type="file" id="file" accept="application/pdf,.pdf" hidden>
+  </section>
+
+  <section class="card job" id="job" hidden>
+    <div class="row" style="align-items:baseline">
+      <strong id="job-title">Working…</strong>
+      <span class="muted" style="font-size:13px" id="job-note"></span>
+      <span class="spacer"></span>
+      <span class="muted mono" style="font-size:12px" id="job-count"></span>
+    </div>
+    <div class="bar" style="margin-top:10px"><i id="job-bar" style="width:0%"></i></div>
+    <div class="row" style="margin-top:10px" id="job-actions"></div>
+  </section>
+
   <div class="grid-2">
     <section class="card">
-      <h2 style="margin-top:0;font-size:15px">Books</h2>
+      <h2>Books</h2>
       <table id="books"><tbody></tbody></table>
-      <p class="muted" style="font-size:13px">
-        Add one with <span class="mono">dgc ingest &lt;file.pdf&gt;</span>.
+      <p class="muted" style="font-size:13px;margin-bottom:0" id="no-books">
+        Nothing opened yet. Drop a PDF above to start.
       </p>
     </section>
+
     <section class="card">
       <div class="row" style="margin-bottom:12px">
-        <h2 style="margin:0;font-size:15px">Review queue</h2>
+        <h2 style="margin:0">Diagrams</h2>
         <span class="spacer"></span>
-        <label class="muted" style="font-size:13px">
-          <select id="status">
-            <option value="pending" selected>needs review</option>
-            <option value="verified">verified</option>
-            <option value="rejected">rejected</option>
-            <option value="">everything</option>
-          </select>
-        </label>
-        <label class="muted" style="font-size:13px">
-          <select id="order">
-            <option value="uncertain" selected>least confident first</option>
-            <option value="page">page order</option>
-            <option value="recent">recently touched</option>
-          </select>
-        </label>
+        <button class="primary" id="review-all" hidden>Review</button>
+        <select id="status">
+          <option value="pending" selected>needs review</option>
+          <option value="verified">verified</option>
+          <option value="rejected">rejected</option>
+          <option value="">everything</option>
+        </select>
+        <select id="order">
+          <option value="uncertain" selected>least confident first</option>
+          <option value="page">page order</option>
+          <option value="recent">recently touched</option>
+        </select>
       </div>
       <table id="queue">
         <thead><tr><th>#</th><th>page</th><th>caption</th><th>confidence</th><th>detection</th></tr></thead>
@@ -50,7 +92,23 @@
       <p class="muted" id="empty" style="display:none">Nothing here yet.</p>
     </section>
   </div>
+
+  <section class="card" style="margin-top:18px">
+    <h2>Teach it your book</h2>
+    <p class="muted" style="font-size:13px;margin:0 0 12px">
+      After you have checked a few dozen diagrams, training folds your corrections
+      into the model and re-reads the rest of the book with it. It takes a while;
+      you can leave this window open.
+    </p>
+    <div class="row">
+      <button id="train">Train on my corrections</button>
+      <button id="reread">Read every diagram again</button>
+      <button id="fetch">Download figurine styles</button>
+      <span class="muted" style="font-size:12px" id="train-note"></span>
+    </div>
+  </section>
 </main>
+<div class="toast" id="toast"></div>
 <script src="/static/index.js"></script>
 </body>
 </html>

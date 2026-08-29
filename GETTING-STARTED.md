@@ -10,10 +10,13 @@ Everything below has been run start to finish on a clean machine.
 
 ## What you will end up with
 
-A command called `dgc`. You point it at a chess book PDF, it finds every
+A window on your computer that you drop a chess book PDF into. It finds every
 diagram, reads the position off each one, and gives you a Lichess link for each.
 There is a review screen for checking its work, and what you correct there makes
 it better at the rest of your book.
+
+You need a terminal twice: once to install it, once to start it. After Step 8
+even that goes away and it becomes an icon you double-click.
 
 Nothing is uploaded anywhere. It all runs on your computer.
 
@@ -102,79 +105,50 @@ diagramchess 0.1.0
 
 ---
 
-## Step 4 — Try it on a sample book
-
-Before using a real book, make one. The tool can generate a sample chess book
-with diagrams it knows the answers to.
+## Step 4 — Start it
 
 ```bash
-mkdir ~/chess
-cd ~/chess
-~/chess-tool/bin/dgc demo-book sample.pdf
+~/chess-tool/bin/dgc app          # Windows: $HOME\chess-tool\Scripts\dgc app
 ```
 
-```
-wrote sample.pdf with 12 diagrams (ground truth in sample.truth.json)
-```
-
-`cd ~/chess` moved you into that folder — commands from now on run there. Now
-read the sample:
-
-```bash
-~/chess-tool/bin/dgc ingest sample.pdf
-```
+A browser window opens on the tool itself. Everything from here happens in that
+window — you will not need to type another command.
 
 ```
-sample.pdf: book 1: 8 pages, 12 diagrams detected, 12 new, 0 already known, 12 read
+diagramchess on http://127.0.0.1:8765
+workspace: /home/you/.diagramchess
+press Ctrl-C here to stop the tool
 ```
 
-And see what it found:
-
-```bash
-~/chess-tool/bin/dgc export --status pending --format board
-```
-
-You should get chess boards drawn in the terminal, each with a Lichess link
-underneath. Click one — it opens that exact position on Lichess.
-
-**If that worked, the tool is installed correctly.** On to your own book.
+Leave the terminal window alone while you work; it is the tool running. Closing
+it stops the tool. (Step 8 replaces even this with a desktop shortcut.)
 
 ---
 
-## Step 5 — Use your own book
+## Step 5 — Open a book
 
-Put your PDF somewhere you can find it. The simplest thing is to copy it into
-the `~/chess` folder you just made, then:
+In the window, click **Try a sample book** first. It draws a small chess book,
+reads it, and drops you straight into the review screen — that is the whole
+tool working end to end, and it takes about a minute.
 
-```bash
-~/chess-tool/bin/dgc ingest my-book.pdf
-```
+Then do it with yours: go back with **‹ books**, and either drag your PDF onto
+the dashed panel or click **Choose a PDF…**. It reads the book, showing you
+which page it is on and how many diagrams it has found, and takes you to the
+review screen when it finishes.
 
-Replace `my-book.pdf` with your file's actual name. If the name has spaces in
-it, wrap it in quotes: `"My Chess Book.pdf"`.
+Nothing is uploaded anywhere. The file is copied into the tool's own folder on
+your computer and read there.
 
-A few hundred pages takes a couple of minutes. You will see:
-
-```
-my-book.pdf: book 1: 224 pages, 187 diagrams detected, 187 new, 0 already known, 187 read
-```
-
-> **Trying a big book?** Add `--pages 40-60` the first time to do just a few
-> pages and see how it goes before committing to the whole thing.
+> **Long book?** Click **Options** and put something like `40-60` in *pages* to
+> try a stretch of it first. **Missed diagrams?** Options → detail →
+> *finest*, which helps on small or faintly printed diagrams.
 
 ---
 
 ## Step 6 — Check its work
 
-```bash
-~/chess-tool/bin/dgc review
-```
-
-```
-review UI on http://127.0.0.1:8765
-```
-
-Open <http://localhost:8765> in your browser. Click a book, then a diagram.
+You are already there after opening a book; **Review** next to a book in the
+list gets you back to it.
 
 You will see the diagram as printed on the left, and a chess board in the middle
 showing what the tool read. The board is not a picture of your book — it is the
@@ -216,8 +190,13 @@ Press `Ctrl + C` in the terminal to stop the review server when you are done.
 
 ## Step 7 — Get the positions out
 
+Every diagram has an **Open on Lichess** button, which is usually all you want.
+To take the whole book somewhere else, open a *second* terminal window (the
+first one is busy running the tool) and:
+
 ```bash
-# boards and Lichess links, in the terminal
+cd ~            # or wherever you started the tool from
+# boards and Lichess links, printed out
 ~/chess-tool/bin/dgc export --format board
 
 # a PGN file you can open in any chess program
@@ -232,6 +211,25 @@ By default these give you the diagrams you have **verified**. Add
 
 ---
 
+## Step 8 — Never open a terminal again
+
+Once, run:
+
+```bash
+~/chess-tool/bin/dgc install-launcher
+```
+
+It puts a shortcut where your computer keeps its programs — the applications
+menu on Linux, the Applications folder on macOS, the Desktop on Windows — and
+prints where it went. From then on, double-clicking it starts the tool and
+opens the window, with no terminal at all.
+
+The shortcut remembers which folder your books live in, so run this from the
+folder you have been working in. `dgc install-launcher --remove` takes it away
+again.
+
+---
+
 ## If it is getting things wrong
 
 First, ask it how it is doing:
@@ -241,15 +239,17 @@ First, ask it how it is doing:
 ```
 
 It compares its own readings against your corrections and tells you what kind of
-mistake it is making. Then teach it your book:
+mistake it is making.
 
-```bash
-~/chess-tool/bin/dgc pieces --fetch     # downloads ~40 chess piece designs
-~/chess-tool/bin/dgc train              # 20-45 minutes, leave it running
-~/chess-tool/bin/dgc reread             # re-read the book with what it learned
-```
+Teaching it your book is done from the window, at the bottom of the home page:
 
-`train` uses both those piece designs and every square you corrected in the
+1. **Download figurine styles** — about forty chess piece designs to train
+   against. Worth doing once.
+2. **Train on my corrections** — 20 to 45 minutes. Leave the window open; the
+   progress bar shows which round it is on and how well it is doing.
+3. **Read every diagram again** — re-reads the book with what it just learned.
+
+Training uses both those piece designs and every square you corrected in the
 review screen. Twenty checked diagrams is enough to make a real difference.
 
 Quick fixes for specific problems:
@@ -259,7 +259,7 @@ Quick fixes for specific problems:
 | A whole diagram is nonsense | The grid was cut in the wrong place — check in the review screen that the square edges fall *between* the pieces |
 | The board is upside down | Press `f` |
 | Wrong side to move | Press `t` |
-| It missed diagrams entirely | Re-run with `--dpi 300` — the diagrams may be small |
+| It missed diagrams entirely | Open the book again with Options → detail → *finest* |
 | Something that is not a chess diagram | Click **Not a diagram** |
 
 ---
@@ -283,8 +283,9 @@ keeps everything you verified.
 
 ## Shortening the command
 
-If typing `~/chess-tool/bin/dgc` gets tiresome, you can "activate" the tool for
-a terminal session — after which plain `dgc` works, until you close the window:
+If you would rather stay in the terminal but not type the long path, you can
+"activate" the tool for a session — after which plain `dgc` works until you
+close the window:
 
 ```bash
 source ~/chess-tool/bin/activate        # macOS / Linux
@@ -292,7 +293,7 @@ $HOME\chess-tool\Scripts\Activate.ps1   # Windows PowerShell
 ```
 
 ```bash
-dgc status
+dgc app
 ```
 
 You will see `(chess-tool)` at the start of your prompt while it is active.
@@ -306,14 +307,17 @@ not finish. Run the check from Step 3 again.
 
 **`python3: command not found` on Windows** — use `python`, not `python3`.
 
+**The window did not open** — go to <http://localhost:8765> yourself. If the
+terminal said a port was busy, it will have printed the number it used instead.
+
 **Something about `cairo`** — run `~/chess-tool/bin/dgc pieces`; if it mentions
 Cairo, follow what it says. On Ubuntu that is `sudo apt install libcairo2`, on
 macOS `brew install cairo`. This does not affect reading books; it only matters
 if you go on to `dgc train`.
 
-**"0 diagrams detected"** — the book may be a low-quality scan. Try
-`--dpi 300`. If the diagrams are photographs of a board rather than printed
-diagrams, this tool will not read them.
+**"No diagrams found in that book"** — it may be a low-quality scan. Open it
+again with Options → detail → *finest*. If the diagrams are photographs of a
+real board rather than printed diagrams, this tool will not read them.
 
 **Readings are poor on your book** — likely a chess font the tool has not seen.
 Verify ten or twenty diagrams in the review screen, then `dgc train` and

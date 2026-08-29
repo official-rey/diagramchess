@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -37,11 +38,25 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--no-read", action="store_true", help="detect only, do not classify")
     p.set_defaults(func=cmd_ingest)
 
-    p = sub.add_parser("review", help="serve the review UI")
+    p = sub.add_parser("app", help="open the whole tool in a browser window")
+    p.add_argument("--host", default="127.0.0.1")
+    p.add_argument("--port", type=int, default=8765)
+    p.add_argument("--model", type=Path, help="checkpoint to read with; defaults to the active model")
+    p.add_argument("--no-browser", action="store_true", help="start the server but do not open a window")
+    p.set_defaults(func=cmd_app)
+
+    p = sub.add_parser("review", help="serve the review UI (see also 'app')")
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=8765)
     p.add_argument("--model", type=Path, help="checkpoint to re-read with; defaults to the active model")
+    p.add_argument("--open", action="store_true", help="open a browser window too")
     p.set_defaults(func=cmd_review)
+
+    p = sub.add_parser("install-launcher",
+                       help="add a desktop shortcut, so the tool starts without a terminal")
+    p.add_argument("--port", type=int, default=8765)
+    p.add_argument("--remove", action="store_true", help="take the shortcut away again")
+    p.set_defaults(func=cmd_install_launcher)
 
     p = sub.add_parser("train", help="train the piece classifier")
     p.add_argument("--epochs", type=int, default=8)
@@ -179,7 +194,7 @@ def cmd_ingest(args) -> int:
     return 0
 
 
-def cmd_review(args) -> int:
+def _serve(args, open_browser: bool) -> int:
     import uvicorn
 
     from .review.app import create_app
@@ -191,8 +206,86 @@ def cmd_review(args) -> int:
               "and 'read again' will work once you have verified one diagram in a book.",
               file=sys.stderr)
     app = create_app(workspace, predictor)
-    print(f"review UI on http://{args.host}:{args.port}")
-    uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
+    port = _free_port(args.host, args.port)
+    url = f"http://{args.host}:{port}"
+    if port != args.port:
+        print(f"port {args.port} was busy", file=sys.stderr)
+    print(f"diagramchess on {url}")
+    print(f"workspace: {Path(workspace.root).resolve()}")
+    if open_browser:
+        _open_when_ready(url)
+    else:
+        print("press Ctrl-C to stop")
+    uvicorn.run(app, host=args.host, port=port, log_level="warning")
+    return 0
+
+
+def cmd_app(args) -> int:
+    return _serve(args, open_browser=not args.no_browser)
+
+
+def cmd_review(args) -> int:
+    return _serve(args, open_browser=args.open)
+
+
+def _free_port(host: str, preferred: int) -> int:
+    """Take the port asked for, or the next one free.
+
+    A shortcut started twice, or a server left running in another window,
+    should not turn into a stack trace on someone's desktop.
+    """
+    import socket
+
+    for port in range(preferred, preferred + 20):
+        with socket.socket() as probe:
+            probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            try:
+                probe.bind((host, port))
+            except OSError:
+                continue
+            return port
+    raise RuntimeError(f"no free port between {preferred} and {preferred + 19}")
+
+
+def _open_when_ready(url: str) -> None:
+    """Open the window once the server answers, not before.
+
+    Launching the browser first shows the reader a connection error and asks
+    them to reload, which is exactly the sort of thing this command exists to
+    avoid.
+    """
+    import threading
+    import urllib.error
+    import urllib.request
+    import webbrowser
+
+    def wait_and_open() -> None:
+        for _ in range(100):
+            try:
+                urllib.request.urlopen(url, timeout=0.5).close()
+                break
+            except urllib.error.HTTPError:
+                break                      # answering, even if not with a 200
+            except Exception:
+                time.sleep(0.1)
+        webbrowser.open(url)
+
+    threading.Thread(target=wait_and_open, daemon=True).start()
+    print("opening a browser window; press Ctrl-C here to stop the tool")
+
+
+def cmd_install_launcher(args) -> int:
+    from .launcher import install, remove
+
+    workspace = Path(args.workspace).resolve()
+    if args.remove:
+        for path in remove():
+            print(f"removed {path}")
+        return 0
+    written = install(workspace=workspace, port=args.port)
+    print(f"created {written.path}")
+    print(f"  it opens the books in {workspace}")
+    print(written.note)
     return 0
 
 
@@ -206,9 +299,9 @@ def cmd_train(args) -> int:
     else:
         print("training on synthetic diagrams only (nothing verified yet)")
 
-    from .pieces import available_piece_sets
+    from .train import training_styles
 
-    styles = available_piece_sets() + _extra_styles(workspace)
+    styles = training_styles(workspace)
     print(f"drawing training diagrams in {len(styles)} figurine style(s)")
     if len(styles) <= 3:
         print("  only the built-in styles are available; 'dgc pieces --fetch' adds\n"

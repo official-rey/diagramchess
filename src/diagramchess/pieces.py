@@ -90,19 +90,44 @@ def _rasterise_svg(svg: bytes, size: int) -> np.ndarray:
     use -- paint the white pieces' bodies with a gradient.  Rendered through
     PyMuPDF those pieces come out as bare dark outlines, indistinguishable from
     the black ones, and a classifier trained on that learns to confuse the two
-    colours.  Cairo draws them properly, so we use it when it is installed and
-    fall back only when it is not.
+    colours.  Cairo draws them properly, so we use it when it works and fall
+    back only when it does not.
+
+    "When it works" is not the same as "when it is installed": cairosvg is a
+    binding to a native Cairo library, and on a machine without that library it
+    imports and then raises OSError from deep inside cffi.  Catching only
+    ImportError would leave such a machine unable to draw a piece at all, which
+    is a worse outcome than falling back to the imperfect renderer, so the net
+    is cast wide here on purpose.
     """
-    try:
-        import cairosvg
-    except ImportError:
-        return _rasterise_svg_pymupdf(svg, size)
+    global _CAIRO_WORKS
+    if _CAIRO_WORKS is not False:
+        try:
+            import cairosvg
+            from PIL import Image
 
-    from PIL import Image
+            scale = 2 if size >= MASTER_SIZE else 4
+            png = cairosvg.svg2png(bytestring=svg,
+                                   output_width=size * scale, output_height=size * scale)
+            _CAIRO_WORKS = True
+            return _fit_canvas(np.array(Image.open(io.BytesIO(png)).convert("RGBA")), size)
+        except Exception:
+            _CAIRO_WORKS = False
+    return _rasterise_svg_pymupdf(svg, size)
 
-    scale = 2 if size >= MASTER_SIZE else 4
-    png = cairosvg.svg2png(bytestring=svg, output_width=size * scale, output_height=size * scale)
-    return _fit_canvas(np.array(Image.open(io.BytesIO(png)).convert("RGBA")), size)
+
+#: None until the first attempt, then True or False.  Cached because the failure
+#: is a native-library one that will not fix itself between calls, and retrying
+#: it for every piece of every style is slow.
+_CAIRO_WORKS: bool | None = None
+
+
+def cairo_available() -> bool:
+    """Whether piece artwork can be rasterised faithfully on this machine."""
+    _rasterise_svg(
+        b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 8">'
+        b'<circle cx="4" cy="4" r="3" fill="#888"/></svg>', 16)
+    return bool(_CAIRO_WORKS)
 
 
 def _rasterise_svg_pymupdf(svg: bytes, size: int) -> np.ndarray:

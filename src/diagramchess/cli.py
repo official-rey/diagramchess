@@ -406,7 +406,15 @@ def cmd_pieces(args) -> int:
         print(f"{piece_set.name:<22}{info.licence:<26}"
               f"{'yes' if info.shippable else 'no':<7}downloaded {note}")
 
-    from .pieces import rejected_styles_in
+    from .pieces import cairo_available, rejected_styles_in
+
+    if not cairo_available():
+        print("\nNote: Cairo is not working on this machine, so piece artwork is being\n"
+              "drawn by the fallback renderer, which drops gradient fills.  Reading\n"
+              "books with the packaged model is unaffected; training on downloaded\n"
+              "styles will be, and styles it cannot draw properly are skipped below.\n"
+              "  Linux:   apt install libcairo2        macOS: brew install cairo\n"
+              "  Windows: pip install cairosvg pycairo, or use the packaged model as is")
 
     rejected = rejected_styles_in(directory)
     if rejected:

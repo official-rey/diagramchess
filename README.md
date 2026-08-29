@@ -27,20 +27,111 @@ seen your corrections.
 
 ## Installing
 
-```
-python -m pip install -e '.[ml]'
+Python 3.10 or newer.
+
+```bash
+git clone https://github.com/official-rey/diagramchess
+cd diagramchess
+
+python -m venv .venv
+source .venv/bin/activate            # Windows: .venv\Scripts\activate
+
+pip install -e ".[ml]"
 ```
 
-The `ml` extra pulls in PyTorch, which is only needed for training and for the
-neural classifier. Everything else — finding diagrams, the review screen,
-exporting FENs, and reading a book from exemplars you have verified — works
-without it.
+That takes a few minutes, most of it PyTorch. Check it worked:
 
-`cairosvg` is a hard dependency rather than an optional one, and it earns that:
-it is the only renderer here that draws gradient-filled piece artwork correctly,
-and getting that wrong is silent (see *Four measurements that changed the design*
-below). Without it the tool falls back to PyMuPDF and refuses any style it can
-no longer tell the colours apart in.
+```bash
+dgc --version
+dgc pieces                           # lists the figurine styles it can draw
+```
+
+**Cairo.** Piece artwork is drawn through Cairo, because it is the only
+renderer here that handles gradient fills — and getting that wrong is silent
+(see *Four measurements that changed the design*). `pip` installs the Python
+binding; the native library may need installing separately:
+
+| | |
+|---|---|
+| Debian/Ubuntu | `sudo apt install libcairo2` |
+| macOS | `brew install cairo` |
+| Windows | usually already works; if not, `pip install pycairo` |
+
+`dgc pieces` says so plainly if Cairo is not working. It is not fatal — reading
+books with the packaged model is unaffected, and the tool falls back to a
+renderer that merely drops gradient fills. It only matters if you go on to
+download extra styles and train on them.
+
+**PyTorch.** The `ml` extra pulls it in. If you would rather have the smaller
+CPU-only build:
+
+```bash
+pip install -e .
+pip install torch --index-url https://download.pytorch.org/whl/cpu
+```
+
+Everything except training and the neural classifier — finding diagrams, the
+review screen, exporting FENs, reading a book from exemplars you have verified —
+works with no PyTorch at all.
+
+## Using it on your own PDFs
+
+```bash
+cd wherever/you/keep/books
+dgc ingest my-chess-book.pdf
+```
+
+That finds every diagram and reads each one. A few hundred pages takes a couple
+of minutes. Then:
+
+```bash
+dgc review                           # opens on http://localhost:8765
+```
+
+The queue is ordered by how unsure the model is, so the diagrams most likely to
+be wrong come first. Check a few. If they are all correct, you can stop —
+`dgc export` already has the positions.
+
+```bash
+dgc export --format board            # positions and Lichess links in the terminal
+dgc export --format pgn > book.pgn   # one PGN entry per position
+dgc export --format csv > book.csv
+```
+
+`--status pending` exports what you have not reviewed, `--status all` everything.
+
+A few things worth knowing:
+
+- **Everything lives in `.diagramchess/`** in whatever directory you ran from,
+  including your corrections. Move it, back it up, delete it to start over. Use
+  `-w path/to/workspace` to keep one workspace for several books.
+- **Ingest at the default 200 dpi.** 150 works; below about 120 the diagrams get
+  too small to find reliably. Use `--dpi 300` for a book with very small
+  diagrams, at the cost of speed.
+- **`--pages 40-90`** limits ingest to a range, which is worth doing on a first
+  run to see how a book goes before committing to all of it.
+- **Re-ingesting is safe.** Diagrams are recognised by where they sit on the
+  page, so a second pass keeps everything you verified.
+
+### If it gets things wrong
+
+Check `dgc accuracy` first — it compares the model against your own corrections
+and tells you what kind of problem you have. Then:
+
+```bash
+dgc pieces --fetch                   # ~40 more figurine styles, a few megabytes
+dgc train                            # 20-45 min on a laptop CPU
+dgc reread                           # re-read the book with the better model
+```
+
+`dgc train` uses both the extra styles and every square you have corrected, so
+the more of the book you have reviewed the more it has to work with. Twenty
+verified diagrams is plenty to make a difference.
+
+If a whole diagram comes out as nonsense, the lattice was cut in the wrong
+place: look at the crop in the review screen and check the cell boundaries fall
+between the pieces. If the board is upside down press `f`; if the side to move
+is wrong press `t`.
 
 ## How it works
 

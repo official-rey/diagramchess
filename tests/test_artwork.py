@@ -131,3 +131,42 @@ def test_rejected_styles_say_why(tmp_path):
     assert "missing" in rejected["partial"]
     assert "alike" in rejected["monochrome"]
     assert rejected_styles_in(tmp_path / "nowhere") == {}
+
+
+def test_artwork_still_draws_when_native_cairo_is_missing(monkeypatch):
+    """cairosvg binds to a native library, and on a machine without it the
+    import succeeds and then raises OSError from inside cffi.  Catching only
+    ImportError would leave such a machine unable to draw a piece at all --
+    worse than falling back to the renderer that merely drops gradients.
+    """
+    import builtins
+
+    import diagramchess.pieces as pieces
+
+    real_import = builtins.__import__
+
+    def without_cairo(name, *args, **kwargs):
+        if name == "cairosvg":
+            raise OSError('no library called "cairo-2" was found')
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", without_cairo)
+    monkeypatch.setattr(pieces, "_CAIRO_WORKS", None)
+    pieces._render_cached.cache_clear()
+
+    assert pieces.cairo_available() is False
+    sets = pieces.available_piece_sets()
+    assert sets, "no styles usable at all without cairo"
+    art = sets[0].render("N", 48)
+    assert art.shape == (48, 48, 4)
+    assert (art[:, :, 3] > 8).sum() > 100, "the fallback renderer drew nothing"
+
+
+def test_cairo_is_working_in_this_environment():
+    """Not a guarantee anywhere else -- a note for whoever reads a failure here."""
+    from diagramchess.pieces import cairo_available
+
+    assert cairo_available(), (
+        "native Cairo is missing, so gradient-filled piece artwork will render "
+        "as bare outlines; install libcairo2 (Linux) or cairo (macOS)"
+    )

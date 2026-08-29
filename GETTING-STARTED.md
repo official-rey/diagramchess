@@ -300,10 +300,42 @@ You will see `(chess-tool)` at the start of your prompt while it is active.
 
 ---
 
+## Updating to a newer version
+
+New features arrive as new subcommands, so an old install fails in a
+recognisable way — `invalid choice: 'app'`, listing the commands it does have.
+That means the tool is older than the instructions. One line fixes it:
+
+**macOS / Linux:**
+
+```bash
+~/chess-tool/bin/pip install --upgrade --force-reinstall --no-deps \
+  "diagramchess @ git+https://github.com/official-rey/diagramchess@claude/chess-pdf-diagram-extractor-plh834"
+```
+
+**Windows (PowerShell):**
+
+```powershell
+& "$HOME\chess-tool\Scripts\pip" install --upgrade --force-reinstall --no-deps `
+  "diagramchess @ git+https://github.com/official-rey/diagramchess@claude/chess-pdf-diagram-extractor-plh834"
+```
+
+`--no-deps` is what keeps this quick: without it pip re-downloads PyTorch, which
+is most of a gigabyte and has not changed. Check with `dgc --help` — `app` and
+`install-launcher` should be in the list.
+
+Your books and corrections live in a separate folder and are untouched by this.
+
+---
+
 ## When something goes wrong
 
+**`invalid choice: 'app'`** — your install predates that command. See *Updating*
+just above.
+
 **`dgc: command not found`** — you either mistyped the path or the install did
-not finish. Run the check from Step 3 again.
+not finish. Run the check from Step 3 again. In PowerShell a path in quotes
+needs the call operator in front of it: `& "$HOME\chess-tool\Scripts\dgc" app`.
 
 **`python3: command not found` on Windows** — use `python`, not `python3`.
 

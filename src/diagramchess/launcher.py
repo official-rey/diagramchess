@@ -40,32 +40,72 @@ def command(workspace: Path, port: int) -> list[str]:
             "--workspace", str(workspace), "app", "--port", str(port)]
 
 
-def install(workspace: Path, port: int = 8765) -> Written:
+def this_system() -> str:
+    if sys.platform == "darwin":
+        return "macos"
+    if os.name == "nt":
+        return "windows"
+    return "linux"
+
+
+def install(workspace: Path, port: int = 8765, system: str | None = None) -> Written:
+    """Write the shortcut for `system`, this machine's by default.
+
+    The platform is an argument rather than something read from ``sys`` at the
+    point of use, so the Windows path can be exercised from a test on any
+    machine: faking it globally turns every ``Path`` in the process into a
+    ``WindowsPath``, which breaks far more than it proves.
+    """
     workspace = Path(workspace).resolve()
     workspace.mkdir(parents=True, exist_ok=True)
-    if sys.platform == "darwin":
-        return _install_macos(workspace, port)
-    if os.name == "nt":
-        return _install_windows(workspace, port)
-    return _install_linux(workspace, port)
+    writers = {"macos": _install_macos, "windows": _install_windows, "linux": _install_linux}
+    return writers[system or this_system()](workspace, port)
 
 
-def paths() -> list[Path]:
+def _windows_home() -> Path:
+    return Path(os.environ.get("USERPROFILE") or Path.home())
+
+
+def _windows_desktop() -> Path | None:
+    """The Desktop, if it is where it can be found.
+
+    With OneDrive's folder backup turned on -- the default on a good many
+    machines -- the real Desktop is inside OneDrive and ``~/Desktop`` does not
+    exist.  Creating it would put the shortcut in a folder nobody ever looks
+    at, so an existing directory is the only thing accepted here.
+    """
+    home = _windows_home()
+    for candidate in (home / "OneDrive" / "Desktop", home / "Desktop"):
+        if candidate.is_dir():
+            return candidate
+    return None
+
+
+def _windows_start_menu() -> Path:
+    appdata = os.environ.get("APPDATA")
+    root = Path(appdata) if appdata else _windows_home() / "AppData" / "Roaming"
+    return root / "Microsoft" / "Windows" / "Start Menu" / "Programs"
+
+
+def paths(system: str | None = None) -> list[Path]:
     """Everywhere :func:`install` might have written, on this platform."""
-    home = Path.home()
-    if sys.platform == "darwin":
-        return [home / "Applications" / f"{APP_NAME}.app"]
-    if os.name == "nt":
-        return [home / "Desktop" / f"{APP_NAME}.bat",
-                home / "AppData/Roaming/Microsoft/Windows/Start Menu/Programs" / f"{APP_NAME}.bat"]
-    return [home / ".local/share/applications" / f"{APP_NAME}.desktop"]
+    system = system or this_system()
+    if system == "macos":
+        return [Path.home() / "Applications" / f"{APP_NAME}.app"]
+    if system == "windows":
+        found = [_windows_start_menu() / f"{APP_NAME}.bat"]
+        desktop = _windows_desktop()
+        if desktop is not None:
+            found.insert(0, desktop / f"{APP_NAME}.bat")
+        return found
+    return [Path.home() / ".local/share/applications" / f"{APP_NAME}.desktop"]
 
 
-def remove() -> list[Path]:
+def remove(system: str | None = None) -> list[Path]:
     import shutil
 
     gone = []
-    for path in paths():
+    for path in paths(system):
         if path.is_dir():
             shutil.rmtree(path)
             gone.append(path)
@@ -129,15 +169,29 @@ def _install_macos(workspace: Path, port: int) -> Written:
 
 
 def _install_windows(workspace: Path, port: int) -> Written:
-    desktop = Path.home() / "Desktop"
-    desktop.mkdir(parents=True, exist_ok=True)
-    target = desktop / f"{APP_NAME}.bat"
-    # pythonw.exe runs without a console window; fall back to python.exe if
-    # this install has no windowed interpreter beside it.
+    # pythonw.exe has no console; `start ""` hands the process off so the cmd
+    # window the .bat runs in closes at once rather than sitting there for as
+    # long as the tool is open.
     windowed = Path(sys.executable).with_name("pythonw.exe")
     runner = windowed if windowed.exists() else Path(sys.executable)
     parts = [str(runner), "-m", "diagramchess.cli",
              "--workspace", str(workspace), "app", "--port", str(port)]
-    target.write_text("@echo off\r\n" + " ".join(f'"{p}"' for p in parts) + "\r\n")
-    return Written(target, "It is on your Desktop; right-click → Pin to Start if you\n"
-                           "  would like it in the Start menu too.")
+    script = ("@echo off\r\n"
+              'start "diagramchess" ' + " ".join(f'"{p}"' for p in parts) + "\r\n")
+
+    # The Start menu is always there; the Desktop may not be.
+    # newline="" so the CRLFs above are written exactly once: text mode would
+    # otherwise translate the \n of each \r\n again and leave \r\r\n behind.
+    start_menu = _windows_start_menu()
+    start_menu.mkdir(parents=True, exist_ok=True)
+    (start_menu / f"{APP_NAME}.bat").write_text(script, newline="")
+
+    desktop = _windows_desktop()
+    if desktop is None:
+        return Written(start_menu / f"{APP_NAME}.bat",
+                       "Press the Windows key and type diagramchess to find it.\n"
+                       "  (No Desktop folder was found to put a copy on.)")
+    target = desktop / f"{APP_NAME}.bat"
+    target.write_text(script, newline="")
+    return Written(target, "There is one in the Start menu too: press the Windows key\n"
+                           "  and type diagramchess.")

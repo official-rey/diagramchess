@@ -230,6 +230,58 @@ def test_the_launcher_writes_something_that_can_be_taken_back(tmp_path, monkeypa
     assert launcher.remove() == []
 
 
+def _as_windows(monkeypatch, tmp_path, desktop: str | None):
+    """Point the Windows branch of the launcher at a temporary home.
+
+    Only the environment is faked.  Forcing sys.platform would turn every Path
+    in the process into a WindowsPath and break far more than it proves, which
+    is why install() takes the platform as an argument.
+    """
+    from diagramchess import launcher
+
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
+    monkeypatch.setenv("APPDATA", str(tmp_path / "AppData" / "Roaming"))
+    if desktop is not None:
+        (tmp_path / desktop).mkdir(parents=True)
+    return launcher
+
+
+def test_on_windows_the_shortcut_goes_to_the_desktop_and_the_start_menu(monkeypatch, tmp_path):
+    launcher = _as_windows(monkeypatch, tmp_path, "Desktop")
+    written = launcher.install(workspace=tmp_path / "ws", port=8765, system="windows")
+
+    assert written.path == tmp_path / "Desktop" / "diagramchess.bat"
+    start_menu = (tmp_path / "AppData/Roaming/Microsoft/Windows/Start Menu/Programs"
+                  / "diagramchess.bat")
+    assert start_menu.exists(), "nothing in the Start menu"
+    # `start` hands off, or the console window sits there for the whole session.
+    # Read as bytes: a .bat wants CRLF, and text mode would hide a missing one.
+    script = written.path.read_bytes()
+    assert script.startswith(b'@echo off\r\nstart "diagramchess" ')
+    assert b"\r\r\n" not in script, "line endings were translated twice"
+    assert script == start_menu.read_bytes()
+    assert sorted(launcher.remove("windows")) == sorted([written.path, start_menu])
+
+
+def test_onedrive_desktops_are_found_and_phantom_ones_are_not_created(monkeypatch, tmp_path):
+    """With OneDrive folder backup on, ~/Desktop does not exist.  Creating it
+    would put the shortcut somewhere the reader never looks."""
+    launcher = _as_windows(monkeypatch, tmp_path, "OneDrive/Desktop")
+    written = launcher.install(workspace=tmp_path / "ws", port=8765, system="windows")
+
+    assert written.path == tmp_path / "OneDrive" / "Desktop" / "diagramchess.bat"
+    assert not (tmp_path / "Desktop").exists(), "invented a Desktop nobody uses"
+
+
+def test_with_no_desktop_at_all_the_start_menu_still_gets_one(monkeypatch, tmp_path):
+    launcher = _as_windows(monkeypatch, tmp_path, None)
+    written = launcher.install(workspace=tmp_path / "ws", port=8765, system="windows")
+
+    assert "Start Menu" in str(written.path)
+    assert written.path.exists()
+    assert "Windows key" in written.note
+
+
 def test_the_launcher_bakes_in_absolute_paths(tmp_path):
     """It runs from a desktop with no shell, no PATH and no working directory."""
     import sys

@@ -1,128 +1,254 @@
+/* Two palettes here, and they are deliberately separate.
+   The *interface* follows the reader's light/dark preference.  The *board*
+   does not: its colours are fixed, because a piece's colour is data.  Deriving
+   the black piece's fill from the theme's ink -- which this file used to do --
+   made both colours render near-white in dark mode, so the one thing a
+   reviewer is here to check was the one thing they could not see. */
 :root {
-  --bg: #f6f5f2;
+  --bg: #f4f2f0;
   --panel: #ffffff;
-  --ink: #1c1b19;
-  --muted: #6b6862;
-  --line: #ddd9d2;
-  --accent: #2f6f4e;
+  --panel-2: #faf9f7;
+  --ink: #262421;
+  --muted: #75706a;
+  --line: #ddd8d1;
+  --accent: #5b8c2a;
+  --accent-hover: #6ba233;
   --accent-ink: #ffffff;
+  --link: #2f6f9f;
   --warn: #b26a00;
   --bad: #a83232;
-  --cursor: #2f6f4e;
   --shadow: 0 1px 2px rgba(0,0,0,.06), 0 6px 18px rgba(0,0,0,.05);
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+  /* Fixed in both themes, like a real board. */
+  --sq-light: #f0d9b5;
+  --sq-dark: #bf9a72;
+  --sq-coord-on-light: #96703f;
+  --sq-coord-on-dark: #fbf1de;
+  --piece-white: #ffffff;
+  --piece-white-edge: #2a2521;
+  --piece-black: #14110e;
+  --piece-black-edge: #efe7db;
+  --board-frame: #7c5c42;
+  --cursor: #20b2aa;
+  --crop-opacity: .42;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #16171a; --panel: #1e2024; --ink: #e8e6e2; --muted: #9a978f;
-    --line: #303338; --accent: #4f9b74; --accent-ink: #0d1210;
-    --warn: #d79b3c; --bad: #d96a6a; --cursor: #4f9b74;
-    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 6px 18px rgba(0,0,0,.3);
+    --bg: #161512;
+    --panel: #262421;
+    --panel-2: #2e2b28;
+    --ink: #dedad4;
+    --muted: #948f88;
+    --line: #3d3a34;
+    --accent: #629924;
+    --accent-hover: #71ad2c;
+    --accent-ink: #ffffff;
+    --link: #6ba6e0;
+    --warn: #d79b3c;
+    --bad: #e07a6a;
+    --shadow: 0 1px 2px rgba(0,0,0,.45), 0 8px 24px rgba(0,0,0,.35);
   }
 }
+
 * { box-sizing: border-box; }
+html, body { height: 100%; }
 body {
   margin: 0; background: var(--bg); color: var(--ink);
-  font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
-a { color: var(--accent); }
-header {
-  display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;
-  padding: 14px 22px; border-bottom: 1px solid var(--line); background: var(--panel);
-  position: sticky; top: 0; z-index: 10;
-}
-header h1 { font-size: 17px; margin: 0; font-weight: 600; letter-spacing: -.01em; }
-header .spacer { flex: 1; }
+a { color: var(--link); }
 .muted { color: var(--muted); }
 .mono { font-family: var(--mono); }
-main { padding: 22px; max-width: 1500px; margin: 0 auto; }
+.spacer { flex: 1; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+header {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 0 18px; height: 52px; border-bottom: 1px solid var(--line); background: var(--panel);
+  position: relative; z-index: 10;
+}
+header h1 { font-size: 16px; margin: 0; font-weight: 600; letter-spacing: -.01em; }
+header h1 a { color: inherit; text-decoration: none; }
+header .where { font-size: 13px; }
 
 .card {
   background: var(--panel); border: 1px solid var(--line);
-  border-radius: 10px; padding: 16px; box-shadow: var(--shadow);
+  border-radius: 6px; padding: 14px;
 }
-.grid-2 { display: grid; grid-template-columns: minmax(320px, 420px) 1fr; gap: 22px; align-items: start; }
-.grid-3 { display: grid; grid-template-columns: minmax(260px, 340px) minmax(360px, 1fr) minmax(240px, 300px); gap: 22px; align-items: start; }
-@media (max-width: 1100px) { .grid-3, .grid-2 { grid-template-columns: 1fr; } }
+.card + .card { margin-top: 12px; }
+.card h2 { margin: 0 0 10px; font-size: 13px; font-weight: 600; text-transform: uppercase;
+           letter-spacing: .06em; color: var(--muted); }
 
 button, .button {
-  font: inherit; padding: 7px 13px; border-radius: 7px; border: 1px solid var(--line);
-  background: var(--panel); color: var(--ink); cursor: pointer; text-decoration: none;
-  display: inline-block;
+  font: inherit; font-size: 13px; padding: 6px 12px; border-radius: 4px;
+  border: 1px solid var(--line); background: var(--panel-2); color: var(--ink);
+  cursor: pointer; text-decoration: none; display: inline-block; text-align: center;
 }
-button:hover, .button:hover { border-color: var(--accent); }
-button.primary, .button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-button:disabled { opacity: .45; cursor: not-allowed; }
-.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+button:hover:not(:disabled), .button:hover { border-color: var(--muted); }
+button.primary, .button.primary {
+  background: var(--accent); color: var(--accent-ink); border-color: transparent; font-weight: 600;
+}
+button.primary:hover:not(:disabled), .button.primary:hover { background: var(--accent-hover); border-color: transparent; }
+button:disabled { opacity: .4; cursor: not-allowed; }
 
-table { border-collapse: collapse; width: 100%; }
-th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); }
-th { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
-tr.clickable:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); cursor: pointer; }
+/* ---- the review screen: one viewport, never scrolls as a page ---------- */
 
-/* the 8x8 editor */
+body.app { display: flex; flex-direction: column; overflow: hidden; }
+main.review {
+  flex: 1; min-height: 0; display: grid;
+  grid-template-columns: minmax(230px, 300px) minmax(0, 1fr) minmax(230px, 280px);
+  gap: 14px; padding: 14px;
+  /* The index page centres itself in a 1400px column.  This screen must not:
+     every pixel it gives back comes off the board. */
+  max-width: none; margin: 0;
+}
+main.review > * { min-height: 0; }
+.rail { overflow-y: auto; overflow-x: hidden; padding-right: 2px; }
+
+.board-col { display: flex; flex-direction: column; min-width: 0; }
+/* Two nested containers.  The outer one sizes the board to whichever of the
+   column's width and height runs out first -- that is what keeps the whole
+   board on screen.  The inner one lets the pieces and coordinates be a
+   fraction of the board rather than a guess in pixels. */
+.board-area { flex: 1; min-height: 0; width: 100%; container-type: size; display: grid; place-items: center; }
+.board-stack {
+  container-type: inline-size;
+  width: min(100cqw, 100cqh - var(--below-board, 46px));
+  display: flex; flex-direction: column; gap: 10px;
+}
+@supports not (width: 1cqw) { .board-stack { width: min(100%, 64vh); } }
+.board-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+/* ---- the board -------------------------------------------------------- */
+
 .board {
-  display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px;
-  background: var(--line); border: 2px solid var(--line); border-radius: 6px;
-  width: 100%; aspect-ratio: 1; user-select: none;
+  display: grid; grid-template-columns: repeat(8, 1fr); aspect-ratio: 1;
+  width: 100%; user-select: none; border-radius: 4px; overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0,0,0,.28);
 }
 .cell {
-  position: relative; background: var(--panel); display: grid; place-items: center;
-  aspect-ratio: 1; cursor: pointer; overflow: hidden;
+  position: relative; display: grid; place-items: center; aspect-ratio: 1;
+  cursor: pointer; overflow: hidden; background: var(--sq-light);
 }
+.cell.dark { background: var(--sq-dark); }
+
+/* The crop is white paper with dark ink.  Multiplied over the square, the
+   paper vanishes and the ink stays -- so the printed diagram appears to be
+   drawn *on* the board rather than pasted over it. */
 .cell img {
   position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
-  opacity: var(--crop-opacity, .5);
+  opacity: var(--crop-opacity); mix-blend-mode: multiply; pointer-events: none;
 }
-/* The crop underneath is what the page prints; the glyph on top is what the
-   model read it as.  They have to be told apart at a glance, so the glyph is
-   drawn solid, in colour, over a dimmed crop -- never in the same weight and
-   shade as the picture behind it. */
+body.crops-only .cell img { mix-blend-mode: normal; }
+
 .cell .glyph {
-  position: relative; font-size: clamp(18px, 3.6vw, 38px); line-height: 1;
-  -webkit-text-stroke: 1.4px var(--ink);
-  paint-order: stroke fill;
+  position: relative; z-index: 1; font-size: 9.6cqw; line-height: 1;
+  paint-order: stroke fill; pointer-events: none;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,.35));
 }
-.cell .glyph.white { color: #fff; }
-.cell .glyph.black { color: var(--ink); }
-.cell.empty .glyph { -webkit-text-stroke: 0; color: var(--muted); opacity: .4; font-size: 14px; }
-.cell.low::after {
-  content: ""; position: absolute; inset: 0; border: 2px solid var(--warn); border-radius: 2px;
+.cell .glyph.white { color: var(--piece-white); -webkit-text-stroke: 1.6px var(--piece-white-edge); }
+.cell .glyph.black { color: var(--piece-black); -webkit-text-stroke: 1.6px var(--piece-black-edge); }
+.cell.empty .glyph { display: none; }
+
+/* Coordinates in the corners, as on a real board -- no separate strips.  They
+   sit over the crop as well as the square, so each carries a halo of its own
+   square colour; without it they disappear into the printed diagram. */
+.cell .coord {
+  position: absolute; z-index: 2; font-size: min(2.2cqw, 13px); font-weight: 700;
+  line-height: 1; pointer-events: none; color: var(--sq-coord-on-light);
+  text-shadow: 0 0 3px var(--sq-light), 0 0 2px var(--sq-light);
 }
-.cell.verylow::after { border-color: var(--bad); border-width: 3px; }
+.cell.dark .coord { color: var(--sq-coord-on-dark);
+                    text-shadow: 0 0 3px var(--sq-dark), 0 0 2px var(--sq-dark); }
+.cell .coord.rank { top: 2px; left: 3px; }
+.cell .coord.file { bottom: 1px; right: 3px; }
+.cell .coord:empty { display: none; }
+
+/* Flags.  An inset ring rather than a border, so it cannot shift the grid. */
+.cell.low { box-shadow: inset 0 0 0 3px var(--warn); }
+.cell.verylow { box-shadow: inset 0 0 0 3px var(--bad); }
+.cell.cursor { box-shadow: inset 0 0 0 4px var(--cursor); z-index: 3; }
 .cell.edited::before {
-  content: ""; position: absolute; top: 3px; right: 3px; width: 7px; height: 7px;
-  border-radius: 50%; background: var(--accent);
+  content: ""; position: absolute; z-index: 2; top: 3px; right: 3px;
+  width: 7px; height: 7px; border-radius: 50%; background: var(--accent);
+  box-shadow: 0 0 0 1.5px rgba(0,0,0,.35);
 }
-.cell.cursor { outline: 3px solid var(--cursor); outline-offset: -3px; z-index: 2; }
+/* Only the doubted squares are worth a number.  Printing 100 on the other
+   sixty is noise that hides the three that matter. */
 .cell .conf {
-  position: absolute; bottom: 2px; left: 3px; font-size: 9px; font-family: var(--mono);
-  color: var(--muted); background: color-mix(in srgb, var(--panel) 80%, transparent); padding: 0 2px; border-radius: 2px;
+  position: absolute; z-index: 2; bottom: 2px; left: 3px; font-size: min(2.4cqw, 10px);
+  font-family: var(--mono); color: #fff; background: rgba(0,0,0,.55);
+  padding: 0 3px; border-radius: 3px; pointer-events: none;
 }
-.coords { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; font-size: 11px; color: var(--muted); text-align: center; padding: 0 2px; }
 
-.palette { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
-.palette button { display: flex; align-items: center; gap: 8px; justify-content: flex-start; }
-.palette .k { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-left: auto; }
-.palette .g { font-size: 20px; line-height: 1; }
+/* ---- the piece picker, laid out like a board editor -------------------- */
 
-img.crop, img.page { width: 100%; border-radius: 6px; border: 1px solid var(--line); display: block; }
-.fen { font-family: var(--mono); font-size: 12px; word-break: break-all; background: var(--bg);
-       padding: 8px 10px; border-radius: 6px; border: 1px solid var(--line); }
-.pill { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 99px;
+.palette { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
+.palette button {
+  padding: 6px 0 3px; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  background: var(--panel-2);
+}
+.palette button.empty-square { grid-column: 1 / -1; flex-direction: row; justify-content: center; gap: 8px; }
+.palette .g {
+  font-size: 24px; line-height: 1; paint-order: stroke fill;
+}
+.palette .white .g { color: var(--piece-white); -webkit-text-stroke: 1.4px var(--piece-white-edge); }
+.palette .black .g { color: var(--piece-black); -webkit-text-stroke: 1.4px var(--piece-black-edge); }
+.palette .k { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+/* The glyph names the piece on the twelve piece buttons; "empty" needs words. */
+.palette .n { display: none; }
+.palette .empty-square .n { display: inline; font-size: 13px; }
+
+/* ---- panels ----------------------------------------------------------- */
+
+img.crop, img.page { width: 100%; border-radius: 4px; border: 1px solid var(--line);
+                     display: block; background: #fff; }
+.fen { font-family: var(--mono); font-size: 11px; word-break: break-all; background: var(--panel-2);
+       padding: 7px 9px; border-radius: 4px; border: 1px solid var(--line); line-height: 1.45; }
+.pill { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 99px;
         border: 1px solid var(--line); color: var(--muted); }
 .pill.ok { color: var(--accent); border-color: var(--accent); }
 .pill.warn { color: var(--warn); border-color: var(--warn); }
 .pill.bad { color: var(--bad); border-color: var(--bad); }
-.problems { color: var(--warn); font-size: 13px; margin: 8px 0 0; padding-left: 18px; }
-kbd { font-family: var(--mono); font-size: 11px; border: 1px solid var(--line); border-bottom-width: 2px;
-      border-radius: 4px; padding: 1px 5px; background: var(--bg); }
-.help { font-size: 13px; }
-.help div { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; }
+/* In the sidebar rather than under the board: a list that grows would
+   otherwise shrink the board every time a position turned out to be illegal. */
+.problems { color: var(--warn); font-size: 12px; margin: 9px 0 0; padding-left: 16px; }
+.problems:empty { display: none; }
+kbd { font-family: var(--mono); font-size: 10px; border: 1px solid var(--line); border-bottom-width: 2px;
+      border-radius: 3px; padding: 1px 4px; background: var(--panel-2); color: var(--muted); }
+.help { font-size: 12px; }
+.help div { display: flex; justify-content: space-between; gap: 12px; padding: 2px 0; align-items: center; }
+.help span:first-child { color: var(--muted); }
+details summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+
 .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-         background: var(--ink); color: var(--bg); padding: 10px 18px; border-radius: 8px;
+         background: var(--ink); color: var(--bg); padding: 9px 16px; border-radius: 5px;
          box-shadow: var(--shadow); opacity: 0; transition: opacity .18s; pointer-events: none; z-index: 50; }
 .toast.show { opacity: 1; }
-.bar { height: 6px; background: var(--line); border-radius: 99px; overflow: hidden; }
+
+/* ---- the index page --------------------------------------------------- */
+
+main { padding: 18px; max-width: 1400px; margin: 0 auto; }
+.grid-2 { display: grid; grid-template-columns: minmax(300px, 400px) 1fr; gap: 18px; align-items: start; }
+@media (max-width: 1000px) { .grid-2 { grid-template-columns: 1fr; } }
+table { border-collapse: collapse; width: 100%; }
+th, td { text-align: left; padding: 6px 9px; border-bottom: 1px solid var(--line); font-size: 13px; }
+th { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
+tr.clickable:hover { background: var(--panel-2); cursor: pointer; }
+select { font: inherit; font-size: 13px; padding: 4px 6px; border-radius: 4px;
+         border: 1px solid var(--line); background: var(--panel-2); color: var(--ink); }
+.bar { height: 5px; background: var(--line); border-radius: 99px; overflow: hidden; }
 .bar > i { display: block; height: 100%; background: var(--accent); }
-details summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+
+/* A narrow window gets the board first and the panels stacked under it,
+   rather than three columns none of which are usable. */
+@media (max-width: 1080px) {
+  body.app { overflow: auto; }
+  main.review { grid-template-columns: 1fr; }
+  main.review .board-col { order: -1; }
+  .board-area { container-type: normal; height: 78vh; }
+  .board-frame { width: min(100%, 78vh); }
+  .rail { overflow: visible; }
+}

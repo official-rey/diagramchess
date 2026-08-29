@@ -4,90 +4,94 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>review · diagramchess</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%225%22%20fill%3D%22%232f6f4e%22%2F%3E%3Ctext%20x%3D%2216%22%20y%3D%2224%22%20font-size%3D%2222%22%20text-anchor%3D%22middle%22%20fill%3D%22%23fff%22%3E%E2%99%9E%3C%2Ftext%3E%3C%2Fsvg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%225%22%20fill%3D%22%23629924%22%2F%3E%3Ctext%20x%3D%2216%22%20y%3D%2224%22%20font-size%3D%2222%22%20text-anchor%3D%22middle%22%20fill%3D%22%23fff%22%3E%E2%99%9E%3C%2Ftext%3E%3C%2Fsvg%3E">
 <link rel="stylesheet" href="/static/style.css">
 </head>
-<body>
+<body class="app">
 <header>
-  <h1><a href="/" style="text-decoration:none;color:inherit">diagramchess</a></h1>
-  <span class="muted" id="where">…</span>
+  <h1><a href="/">diagramchess</a></h1>
+  <span class="muted where" id="where">…</span>
   <span class="spacer"></span>
-  <span class="muted" id="remaining"></span>
-  <button id="prev" title="previous (P)">‹ prev</button>
-  <button id="next" title="next (N)">next ›</button>
+  <span class="muted" style="font-size:12px" id="remaining"></span>
+  <button id="prev" title="previous">‹ prev</button>
+  <button id="next" title="next">next ›</button>
 </header>
 
-<main>
-  <div class="grid-3">
-    <section>
-      <div class="card">
-        <div class="muted" style="font-size:13px;margin-bottom:8px" id="caption"></div>
-        <img class="crop" id="crop" alt="the diagram as printed">
-        <div class="row" style="margin-top:10px">
-          <span class="pill" id="detect-pill"></span>
-          <span class="pill" id="conf-pill"></span>
-        </div>
+<main class="review">
+  <aside class="rail">
+    <div class="card">
+      <h2>As printed</h2>
+      <img class="crop" id="crop" alt="the diagram as printed">
+      <div class="muted" style="font-size:12px;margin-top:9px" id="caption"></div>
+      <div class="row" style="margin-top:9px">
+        <span class="pill" id="detect-pill"></span>
+        <span class="pill" id="conf-pill"></span>
       </div>
-      <details class="card" style="margin-top:14px">
-        <summary>Show the whole page</summary>
-        <img class="page" id="page" style="margin-top:10px" alt="the page this came from" loading="lazy">
-      </details>
-      <div class="card help" style="margin-top:14px">
-        <div><span>move</span><span><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd></span></div>
-        <div><span>set a black piece</span><span><kbd>k</kbd><kbd>q</kbd><kbd>r</kbd><kbd>b</kbd><kbd>n</kbd><kbd>p</kbd></span></div>
-        <div><span>set a white piece</span><span><kbd>shift</kbd> + the same</span></div>
-        <div><span>empty the square</span><span><kbd>space</kbd> or <kbd>.</kbd></span></div>
-        <div><span>jump to the next doubt</span><span><kbd>tab</kbd></span></div>
-        <div><span>flip the board</span><span><kbd>f</kbd></span></div>
-        <div><span>switch side to move</span><span><kbd>t</kbd></span></div>
-        <div><span>read it again</span><span><kbd>a</kbd></span></div>
-        <div><span>crops / reading / both</span><span><kbd>c</kbd></span></div>
-        <div><span>open on Lichess</span><span><kbd>l</kbd></span></div>
-        <div><span>save and go on</span><span><kbd>enter</kbd></span></div>
-      </div>
-    </section>
+    </div>
+    <details class="card">
+      <summary>Show the whole page</summary>
+      <img class="page" id="page" style="margin-top:10px" alt="the page this came from" loading="lazy">
+    </details>
+    <div class="card help">
+      <h2>Keys</h2>
+      <div><span>move</span><span><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd></span></div>
+      <div><span>jump to the next doubt</span><span><kbd>tab</kbd></span></div>
+      <div><span>set a black piece</span><span><kbd>k</kbd><kbd>q</kbd><kbd>r</kbd><kbd>b</kbd><kbd>n</kbd><kbd>p</kbd></span></div>
+      <div><span>set a white piece</span><span><kbd>shift</kbd> + the same</span></div>
+      <div><span>empty the square</span><span><kbd>space</kbd></span></div>
+      <div><span>flip the board</span><span><kbd>f</kbd></span></div>
+      <div><span>switch side to move</span><span><kbd>t</kbd></span></div>
+      <div><span>read it again</span><span><kbd>a</kbd></span></div>
+      <div><span>crops / reading / both</span><span><kbd>c</kbd></span></div>
+      <div><span>open on Lichess</span><span><kbd>l</kbd></span></div>
+      <div><span>save and go on</span><span><kbd>enter</kbd></span></div>
+    </div>
+  </aside>
 
-    <section class="card">
-      <div class="coords" id="files-top"></div>
-      <div class="board" id="board"></div>
-      <div class="coords" id="files-bottom"></div>
-      <div class="row" style="margin-top:12px">
-        <button id="flip" title="f">flip · <span id="orientation-label">white at the bottom</span></button>
-        <button id="side" title="t">side to move · <span id="side-label">white</span></button>
-        <button id="reread" title="r">read again</button>
-        <span class="spacer"></span>
-        <label class="muted" style="font-size:12px">
-          flag below
-          <input type="range" id="threshold" min="50" max="100" value="90" style="vertical-align:middle;width:90px">
-          <span class="mono" id="threshold-label">90%</span>
-        </label>
-      </div>
-      <ul class="problems" id="problems"></ul>
-    </section>
-
-    <section>
-      <div class="card">
-        <div class="palette" id="palette"></div>
-      </div>
-      <div class="card" style="margin-top:14px">
-        <div class="fen" id="fen">…</div>
-        <div class="row" style="margin-top:10px">
-          <a class="button primary" id="lichess" target="_blank" rel="noopener">Open on Lichess</a>
-          <a class="button" id="lichess-editor" target="_blank" rel="noopener">Editor</a>
-          <button id="copy">Copy FEN</button>
+  <div class="board-col">
+    <div class="board-area">
+      <div class="board-stack">
+        <div class="board" id="board"></div>
+        <div class="board-bar">
+          <button id="flip" title="f">flip · <span id="orientation-label">white at the bottom</span></button>
+          <button id="side" title="t">to move · <span id="side-label">white</span></button>
+          <button id="reread" title="a">read again</button>
+          <span class="spacer"></span>
+          <label class="muted" style="font-size:12px;white-space:nowrap">
+            flag below
+            <input type="range" id="threshold" min="50" max="100" value="90" style="vertical-align:middle;width:80px">
+            <span class="mono" id="threshold-label">90%</span>
+          </label>
         </div>
       </div>
-      <div class="card" style="margin-top:14px">
-        <div class="row">
-          <button class="primary" id="save">Save &amp; next</button>
-          <button id="reject" title="this is not a chess diagram">Not a diagram</button>
-        </div>
-        <p class="muted" style="font-size:12px;margin:10px 0 0" id="save-note">
-          Saving records every square as training data, including the ones the model got right.
-        </p>
-      </div>
-    </section>
+    </div>
   </div>
+
+  <aside class="rail">
+    <div class="card">
+      <div class="row">
+        <button class="primary" id="save" style="flex:1">Save &amp; next</button>
+        <button id="reject" title="this is not a chess diagram">Not a diagram</button>
+      </div>
+      <p class="muted" style="font-size:11px;margin:9px 0 0" id="save-note">
+        Saving records every square as training data, including the ones the model got right.
+      </p>
+    </div>
+    <div class="card">
+      <h2>Set a square</h2>
+      <div class="palette" id="palette"></div>
+    </div>
+    <div class="card">
+      <h2>Position</h2>
+      <div class="fen" id="fen">…</div>
+      <ul class="problems" id="problems"></ul>
+      <div class="row" style="margin-top:9px">
+        <a class="button primary" id="lichess" target="_blank" rel="noopener">Open on Lichess</a>
+        <a class="button" id="lichess-editor" target="_blank" rel="noopener">Editor</a>
+        <button id="copy">Copy FEN</button>
+      </div>
+    </div>
+  </aside>
 </main>
 <div class="toast" id="toast"></div>
 <script src="/static/review.js"></script>

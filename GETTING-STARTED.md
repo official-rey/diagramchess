@@ -176,10 +176,14 @@ review UI on http://127.0.0.1:8765
 
 Open <http://localhost:8765> in your browser. Click a book, then a diagram.
 
-You will see the diagram as printed on the left, and an 8×8 grid in the middle
-showing what the tool read. Each square shows the actual cut-out from the page
-with the tool's reading drawn on top — where it agrees the two line up cleanly,
-where it disagrees you see two pieces at once.
+You will see the diagram as printed on the left, and a chess board in the middle
+showing what the tool read. The board is not a picture of your book — it is the
+tool's answer, with the printed page faintly underneath it. Where the two agree
+the pieces line up cleanly; where they disagree you see two pieces at once, and
+that is the square to fix.
+
+Squares the tool was unsure of are ringed in orange or red and show how sure it
+was. Everything unmarked, it is confident about.
 
 The list is ordered with the diagrams it is *least sure about* first, so if the
 first few are right, the rest very likely are too.

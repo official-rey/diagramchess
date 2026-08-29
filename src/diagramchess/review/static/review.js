@@ -12,12 +12,13 @@ const NAMES = {
   N: 'white knight', P: 'white pawn', k: 'black king', q: 'black queen', r: 'black rook',
   b: 'black bishop', n: 'black knight', p: 'black pawn',
 };
-const PALETTE = ['K', 'k', 'Q', 'q', 'R', 'r', 'B', 'b', 'N', 'n', 'P', 'p', '.'];
+// Laid out as a board editor does it: a rank of white pieces, a rank of black.
+const PALETTE = ['K', 'Q', 'R', 'B', 'N', 'P', 'k', 'q', 'r', 'b', 'n', 'p', '.'];
 
 const $ = (sel) => document.querySelector(sel);
 const state = {
   id: null, cells: [], labels: [], predicted: [], confidence: [],
-  orientation: 'white', side: 'w', cursor: 0, dirty: false, cropOpacity: 0.5,
+  orientation: 'white', side: 'w', cursor: 0, dirty: false, cropOpacity: 0.42,
   nextId: null, prevId: null, threshold: 0.9, saving: false,
   // Squares you have already looked at.  A square the model doubted stays
   // doubted in the record, but once you have ruled on it the cursor should
@@ -46,9 +47,14 @@ function buildBoard() {
   board.innerHTML = '';
   for (let index = 0; index < 64; index++) {
     const cell = document.createElement('div');
-    cell.className = 'cell';
+    // Top left is light whichever way round the board is: a8 flipped is h1,
+    // and both are light squares.  So the tint follows the display index and
+    // never has to be repainted when the orientation changes.
+    const dark = ((index >> 3) + index) % 2 === 1;
+    cell.className = dark ? 'cell dark' : 'cell';
     cell.dataset.index = index;
-    cell.innerHTML = '<img alt=""><span class="glyph"></span><span class="conf"></span>';
+    cell.innerHTML = '<img alt=""><span class="glyph"></span><span class="conf"></span>' +
+      '<span class="coord rank"></span><span class="coord file"></span>';
     cell.onclick = () => { state.cursor = index; paint(); };
     board.appendChild(cell);
   }
@@ -66,16 +72,17 @@ function paint() {
     const glyph = cell.querySelector('.glyph');
     glyph.textContent = GLYPHS[label] ?? '?';
     glyph.className = 'glyph ' + (label === '.' ? '' : label === label.toUpperCase() ? 'white' : 'black');
-    const conf = cell.querySelector('.conf');
-    conf.textContent = confidence === null || confidence === undefined
-      ? '' : Math.round(confidence * 100);
 
     cell.classList.toggle('empty', label === '.');
     cell.classList.toggle('cursor', index === state.cursor);
     cell.classList.toggle('edited', label !== state.predicted[index]);
     const low = confidence !== null && confidence !== undefined && confidence < state.threshold;
-    cell.classList.toggle('low', low);
+    cell.classList.toggle('low', low && confidence >= 0.5);
     cell.classList.toggle('verylow', low && confidence < 0.5);
+
+    // A number on every square is sixty-one reassurances hiding the three
+    // readings worth looking at, so only the flagged squares carry one.
+    cell.querySelector('.conf').textContent = low ? Math.round(confidence * 100) : '';
     cell.title = `${squareName(index)} · ${NAMES[label]}` +
       (confidence != null ? ` · model ${Math.round(confidence * 100)}% sure of ${NAMES[state.predicted[index]]}` : '');
   }
@@ -93,13 +100,15 @@ function squareName(index) {
     : 'abcdefgh'[7 - col] + (row + 1);
 }
 
+// Files along the bottom edge, ranks up the left one -- inside the board, the
+// way a printed board carries them.
 function paintCoordinates() {
-  const files = state.orientation === 'white'
-    ? ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
-    : ['h', 'g', 'f', 'e', 'd', 'c', 'b', 'a'];
-  const html = files.map((f) => `<span>${f}</span>`).join('');
-  $('#files-top').innerHTML = html;
-  $('#files-bottom').innerHTML = html;
+  const cells = $('#board').children;
+  for (let index = 0; index < 64; index++) {
+    const name = squareName(index);
+    cells[index].querySelector('.coord.rank').textContent = index % 8 === 0 ? name[1] : '';
+    cells[index].querySelector('.coord.file').textContent = index >= 56 ? name[0] : '';
+  }
 }
 
 function buildPalette() {
@@ -108,8 +117,12 @@ function buildPalette() {
   for (const label of PALETTE) {
     const button = document.createElement('button');
     const key = label === '.' ? 'space' : label;
-    button.innerHTML =
-      `<span class="g">${GLYPHS[label]}</span><span>${NAMES[label]}</span><span class="k">${key}</span>`;
+    button.className = label === '.'
+      ? 'empty-square'
+      : label === label.toUpperCase() ? 'white' : 'black';
+    button.title = `${NAMES[label]} · ${key}`;
+    button.innerHTML = (label === '.' ? '' : `<span class="g">${GLYPHS[label]}</span>`) +
+      `<span class="n">${NAMES[label]}</span><span class="k">${key}</span>`;
     button.onclick = () => setLabel(state.cursor, label);
     palette.appendChild(button);
   }
@@ -196,8 +209,10 @@ async function load(id) {
   $('#next').disabled = !state.nextId;
 
   const meta = data.diagram.detect_meta || {};
+  // Not the number of men: it counts squares carrying ink at detection time,
+  // which on a book that hatches its dark squares runs well past thirty-two.
   $('#detect-pill').textContent =
-    `detected ${data.diagram.score.toFixed(2)} · ${meta.occupied_cells ?? '?'} men`;
+    `detected ${data.diagram.score.toFixed(2)} · ${meta.occupied_cells ?? '?'} inked squares`;
   const worst = data.diagram.min_confidence;
   const pill = $('#conf-pill');
   pill.textContent = worst == null ? 'not read yet' : `worst square ${Math.round(worst * 100)}%`;
@@ -306,10 +321,13 @@ document.addEventListener('keydown', (event) => {
 function cycleCrops() {
   // Three useful views: the reading over the picture, the reading alone (does
   // the position make sense?), and the picture alone (what does it really say?).
-  const steps = [0.5, 0.0, 1.0];
+  const steps = [0.42, 0.0, 1.0];
   const next = steps[(steps.indexOf(state.cropOpacity) + 1) % steps.length];
   state.cropOpacity = next;
   document.documentElement.style.setProperty('--crop-opacity', String(next));
+  // Multiplying the crop into the square is what makes the print look drawn on
+  // the board, but at full strength you want the picture itself, untinted.
+  document.body.classList.toggle('crops-only', next === 1);
   toast(next === 0 ? 'Showing the reading only.' : next === 1 ? 'Showing the crops only.' : 'Showing both.');
 }
 

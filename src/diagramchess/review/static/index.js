@@ -66,7 +66,8 @@ async function loadQueue() {
       <td>${d.page + 1}</td>
       <td>${escapeHtml(d.caption.split('\n')[0].slice(0, 60))}</td>
       <td>${confidencePill(d.min_confidence)}</td>
-      <td class="muted mono" style="font-size:12px">${d.score.toFixed(2)} ${d.detect_meta.occupied_cells ?? ''}♟</td>`;
+      <td class="muted mono" style="font-size:12px" title="detection score, and squares carrying ink"
+          >${d.score.toFixed(2)} · ${d.detect_meta.occupied_cells ?? '?'}</td>`;
     tr.onclick = () => { location.href = `/review?id=${d.id}`; };
     body.appendChild(tr);
   }

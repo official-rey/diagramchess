@@ -199,8 +199,18 @@ the cursor starts on the least confident square.
 | `enter` | save and go to the next |
 
 Each cell shows the actual crop with the model's reading drawn over it, so
-agreement looks clean and disagreement looks doubled. Squares the model is
-unsure about are outlined; the threshold is a slider.
+agreement looks clean and disagreement looks doubled. The crop is multiplied
+into the square rather than laid on top, which drops the paper and keeps the
+ink — the printed diagram appears to be drawn on the board. Squares the model
+is unsure about are ringed and carry their confidence; the rest carry nothing,
+because a number on every square is sixty-one reassurances hiding the three
+readings worth a second look. The threshold is a slider.
+
+The piece colours are fixed rather than taken from the interface theme. That
+sounds like a detail and is not: they were once drawn in the theme's ink, so in
+dark mode both colours came out near-white and the single thing the screen
+exists to show — which side a piece belongs to — was the thing it could not
+show. `tests/test_review_ui.py` holds that shut.
 
 Saving records all 64 squares, including the ones the model got right — those
 are what teach it that its confident answers are correct.

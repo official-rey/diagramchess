@@ -17,7 +17,8 @@ dgc app                       # opens a window: drop a PDF in, and review what i
 Opening a book, watching it being read, checking the diagrams, training on your
 corrections and re-reading with the result all happen in that one window.
 `dgc install-launcher` puts a shortcut in your applications menu, after which
-there is no terminal at all.
+there is no terminal at all, and `dgc update` fetches a newer version without
+one either.
 
 The same steps are separate commands if you would rather script them:
 
@@ -214,6 +215,13 @@ screen for it.
 the workspace and the port baked in — a shortcut runs with no shell, no PATH
 and no working directory, so nothing may be left to be looked up.
 `--remove` takes it back.
+
+`dgc update` reinstalls from wherever pip got this copy, which pip recorded at
+install time along with the branch and the exact commit. That commit is what
+`dgc --version` prints and what the window shows in its top right corner: the
+version number alone does not move between builds, so it cannot distinguish a
+current install from a stale one — and a stale one does not look old, it looks
+broken, since the new HTML is served with the old script.
 
 Because the server can now import files and start training, and because
 anything in the browser can reach localhost, a request that changes something

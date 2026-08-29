@@ -25,7 +25,7 @@ def main(argv: list[str] | None = None) -> int:
         prog="dgc",
         description="Read chess diagrams out of PDF books and open them on Lichess.",
     )
-    parser.add_argument("--version", action="version", version=f"diagramchess {__version__}")
+    parser.add_argument("--version", action="version", version=_version_line())
     parser.add_argument("-w", "--workspace", default=DEFAULT_WORKSPACE,
                         help="where diagrams, corrections and models are kept (default: %(default)s)")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -57,6 +57,10 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--port", type=int, default=8765)
     p.add_argument("--remove", action="store_true", help="take the shortcut away again")
     p.set_defaults(func=cmd_install_launcher)
+
+    p = sub.add_parser("update", help="fetch and install the latest version of this tool")
+    p.add_argument("--dry-run", action="store_true", help="print the command and stop")
+    p.set_defaults(func=cmd_update)
 
     p = sub.add_parser("train", help="train the piece classifier")
     p.add_argument("--epochs", type=int, default=8)
@@ -210,7 +214,7 @@ def _serve(args, open_browser: bool) -> int:
     url = f"http://{args.host}:{port}"
     if port != args.port:
         print(f"port {args.port} was busy", file=sys.stderr)
-    print(f"diagramchess on {url}")
+    print(f"{_version_line()} on {url}")
     print(f"workspace: {Path(workspace.root).resolve()}")
     if open_browser:
         _open_when_ready(url)
@@ -272,6 +276,59 @@ def _open_when_ready(url: str) -> None:
 
     threading.Thread(target=wait_and_open, daemon=True).start()
     print("opening a browser window; press Ctrl-C here to stop the tool")
+
+
+def cmd_update(args) -> int:
+    """Reinstall from wherever pip got this copy.
+
+    Written because three reports in a row turned out to be an old install,
+    and the fix was a pip line with two flags that matter and a URL nobody
+    should have to keep.  pip recorded all of it at install time.
+    """
+    import subprocess
+
+    from .provenance import install_source
+
+    source = install_source()
+    if source is None:
+        print("pip did not record where this copy came from, so it cannot be\n"
+              "updated automatically. Reinstall it the way you installed it.",
+              file=sys.stderr)
+        return 1
+    if source.editable:
+        print(f"this is an editable install of a checkout at {source.url};\n"
+              "update it with 'git pull' there instead.", file=sys.stderr)
+        return 1
+
+    command = [sys.executable, "-m", "pip", "install", "--upgrade",
+               # --no-deps because everything else is already here, and
+               # without it pip re-downloads most of a gigabyte of PyTorch
+               # that has not changed.  --force-reinstall because the version
+               # number does not move between commits, so pip would otherwise
+               # decide there was nothing to do.
+               "--force-reinstall", "--no-deps", source.requirement()]
+    print(f"currently: {_version_line()}")
+    print("running: " + " ".join(command))
+    if args.dry_run:
+        return 0
+
+    result = subprocess.run(command)
+    if result.returncode != 0:
+        print("\npip could not install the update -- its output is above.", file=sys.stderr)
+        return result.returncode
+
+    # This process still holds the old code, so ask a fresh one what it is.
+    after = subprocess.run([sys.executable, "-m", "diagramchess.cli", "--version"],
+                           capture_output=True, text=True)
+    print(f"\nnow: {after.stdout.strip() or 'installed'}")
+    print("start it with 'dgc app'.")
+    return 0
+
+
+def _version_line() -> str:
+    from .provenance import version_line
+
+    return f"diagramchess {version_line()}"
 
 
 def cmd_install_launcher(args) -> int:
@@ -417,8 +474,11 @@ def cmd_accuracy(args) -> int:
 
 
 def cmd_status(args) -> int:
+    from .provenance import describe
+
     workspace = _workspace(args)
     stats = workspace.stats()
+    print(describe())
     print(f"workspace: {workspace.root}")
     for key, value in stats.items():
         print(f"  {key.replace('_', ' ')}: {value}")

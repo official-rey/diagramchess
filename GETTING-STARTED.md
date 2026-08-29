@@ -302,29 +302,37 @@ You will see `(chess-tool)` at the start of your prompt while it is active.
 
 ## Updating to a newer version
 
-New features arrive as new subcommands, so an old install fails in a
-recognisable way — `invalid choice: 'app'`, listing the commands it does have.
-That means the tool is older than the instructions. One line fixes it:
-
-**macOS / Linux:**
-
 ```bash
-~/chess-tool/bin/pip install --upgrade --force-reinstall --no-deps \
-  "diagramchess @ git+https://github.com/official-rey/diagramchess@claude/chess-pdf-diagram-extractor-plh834"
+~/chess-tool/bin/dgc update      # Windows: & "$HOME\chess-tool\Scripts\dgc" update
 ```
 
-**Windows (PowerShell):**
+It knows where it was installed from, so that is the whole command. Your books
+and corrections live in a separate folder and are untouched.
+
+**Which version am I running?** The top right of the window shows it, and so
+does `dgc --version`:
+
+```
+diagramchess 0.1.0 (6c36820)
+```
+
+That short code is the exact build. If the window looks wrong in a way the
+instructions do not describe, compare it with what `dgc update` installs.
+
+**On a version too old to have `update`** (it will say `invalid choice`), one
+line does the same thing by hand:
 
 ```powershell
 & "$HOME\chess-tool\Scripts\pip" install --upgrade --force-reinstall --no-deps `
   "diagramchess @ git+https://github.com/official-rey/diagramchess@claude/chess-pdf-diagram-extractor-plh834"
 ```
 
-`--no-deps` is what keeps this quick: without it pip re-downloads PyTorch, which
-is most of a gigabyte and has not changed. Check with `dgc --help` — `app` and
-`install-launcher` should be in the list.
+`--no-deps` is what keeps it quick: without it pip re-downloads PyTorch, which
+is most of a gigabyte and has not changed. `--force-reinstall` is what makes it
+work at all: the version number does not change between builds, so pip would
+otherwise decide there was nothing to do.
 
-Your books and corrections live in a separate folder and are untouched by this.
+**After updating, reload the window once** with `Ctrl` + `Shift` + `R`.
 
 ---
 
@@ -332,6 +340,8 @@ Your books and corrections live in a separate folder and are untouched by this.
 
 **`invalid choice: 'app'`** — your install predates that command. See *Updating*
 just above.
+
+**Mojibake — `â™ž`, or `PDFâ€¦`** — an old build. Run `dgc update`.
 
 **`dgc: command not found`** — you either mistyped the path or the install did
 not finish. Run the check from Step 3 again. In PowerShell a path in quotes

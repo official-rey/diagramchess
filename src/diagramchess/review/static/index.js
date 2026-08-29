@@ -138,6 +138,9 @@ async function loadStats() {
   $('#summary').textContent =
     `${s.books} book${s.books === 1 ? '' : 's'} · ${s.diagrams} diagrams · ` +
     `${s.verified} verified · ${s.pending} to review`;
+  // Shown because a stale install looks like a broken app, not an old one:
+  // last week's page served with last week's script, and nothing saying so.
+  $('#version').textContent = data.version || '';
   $('#model').textContent = data.model
     ? `model #${data.model.id}`
     : 'using the packaged model';

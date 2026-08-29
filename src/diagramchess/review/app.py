@@ -85,8 +85,11 @@ def create_app(workspace: Workspace, predictor: Predictor | None = None) -> Fast
 
     @app.get("/api/stats")
     def stats() -> dict:
+        from ..provenance import version_line
+
         model = workspace.active_model()
         return {
+            "version": version_line(),
             "stats": workspace.stats(),
             "books": [dict(b) for b in workspace.books()],
             "model": dict(model) if model else None,
